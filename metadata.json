@@ -1,0 +1,5 @@
+{
+  "name": "Hitachi Rail SSMS Governance Dashboard",
+  "description": "A mission-critical industrial dashboard for managing safety-critical software releases, featuring a Global Control Tower, Consistency Map, Site Validator, and Insight Chat.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,105 @@
+export interface Project {
+  id: string;
+  name: string;
+  phase: string;
+  status: 'BLOCKED' | 'AT RISK' | 'HEALTHY';
+  safety: 'healthy' | 'warning' | 'critical';
+  hybrid: 'healthy' | 'warning' | 'critical';
+  compliance: 'healthy' | 'warning' | 'critical';
+}
+
+export const projects: Project[] = [
+  {
+    id: 'HR-001',
+    name: 'SSMS',
+    phase: 'Release Docs',
+    status: 'BLOCKED',
+    safety: 'critical',
+    hybrid: 'healthy',
+    compliance: 'warning',
+  },
+  {
+    id: 'HR-042',
+    name: 'Frecciarossa Monitoring',
+    phase: 'Testing',
+    status: 'AT RISK',
+    safety: 'healthy',
+    hybrid: 'warning',
+    compliance: 'healthy',
+  },
+  {
+    id: 'HR-015',
+    name: 'ETCS Signal Control',
+    phase: 'Intake',
+    status: 'HEALTHY',
+    safety: 'healthy',
+    hybrid: 'healthy',
+    compliance: 'healthy',
+  },
+  {
+    id: 'HR-099',
+    name: 'Naples Station Comms',
+    phase: 'Testing',
+    status: 'HEALTHY',
+    safety: 'healthy',
+    hybrid: 'healthy',
+    compliance: 'healthy',
+  },
+];
+
+export interface Requirement {
+  id: string;
+  description: string;
+  linkedTest: string;
+  outcome: 'PASS' | 'FAIL';
+  targetVdd: string;
+  compliance: boolean;
+}
+
+export const requirements: Requirement[] = [
+  {
+    id: 'REQ-01',
+    description: 'Auto-Gate Response Latency',
+    linkedTest: 'TST-102',
+    outcome: 'PASS',
+    targetVdd: 'v1.2.0 (Stable)',
+    compliance: true,
+  },
+  {
+    id: 'REQ-02',
+    description: 'Threshold Stability: Multi-modal',
+    linkedTest: 'TST-105',
+    outcome: 'FAIL',
+    targetVdd: 'v1.2.0 (Stable)',
+    compliance: false,
+  },
+  {
+    id: 'REQ-03',
+    description: 'Passenger Flow Synchronization',
+    linkedTest: 'TST-108',
+    outcome: 'PASS',
+    targetVdd: 'v1.1.9 (Legacy)',
+    compliance: true,
+  },
+  {
+    id: 'REQ-04',
+    description: 'Emergency Protocol: Fire/Smoke',
+    linkedTest: 'TST-110',
+    outcome: 'PASS',
+    targetVdd: 'v1.2.0 (Stable)',
+    compliance: true,
+  },
+];
+
+export interface Station {
+  id: string;
+  name: string;
+  status: 'Incompatible' | 'Version Drift' | 'Synced';
+}
+
+export const stations: Station[] = [
+  { id: 'napoli', name: 'Napoli Centrale', status: 'Incompatible' },
+  { id: 'torino', name: 'Torino Porta Nuova', status: 'Version Drift' },
+  { id: 'milano', name: 'Milano Centrale', status: 'Synced' },
+  { id: 'roma', name: 'Roma Termini', status: 'Synced' },
+];
