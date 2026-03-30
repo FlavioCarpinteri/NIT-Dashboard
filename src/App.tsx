@@ -21,7 +21,11 @@ import {
   ExternalLink,
   User,
   Menu,
-  MoreVertical
+  MoreVertical,
+  Files,
+  FileArchive,
+  Image,
+  Table as TableIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -41,22 +45,30 @@ import {
 
 // --- Components ---
 
-const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: string) => void }) => {
+const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, setActiveTab: (tab: string) => void, onBackHome: () => void }) => {
   const navItems = [
-    { id: 'tower', icon: LayoutDashboard, label: 'Control Tower' },
     { id: 'consistency', icon: Map, label: 'Consistency Map' },
-    { id: 'validator', icon: ShieldCheck, label: 'Site Validator' },
+    { id: 'dataset', icon: Files, label: 'Dataset' },
     { id: 'chat', icon: MessageSquare, label: 'Insight Chat' },
     { id: 'vdd', icon: FileText, label: 'VDD Library' },
   ];
 
   return (
-    <aside className="w-16 md:w-64 bg-brand-card border-r border-brand-border flex flex-col h-screen sticky top-0">
-      <div className="p-4 flex items-center gap-3">
-        <div className="w-8 h-8 bg-brand-accent rounded flex items-center justify-center">
-          <Train className="text-white w-5 h-5" />
+    <aside className="w-16 md:w-64 bg-brand-card border-r border-brand-border flex flex-col h-screen sticky top-0 z-20">
+      <div className="p-4 flex items-center justify-between border-b border-brand-border mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-brand-accent rounded flex items-center justify-center">
+            <Train className="text-white w-5 h-5" />
+          </div>
+          <span className="font-bold text-lg hidden md:block">Hitachi Rail</span>
         </div>
-        <span className="font-bold text-lg hidden md:block">Hitachi Rail</span>
+        <button 
+          onClick={onBackHome}
+          className="p-1.5 hover:bg-brand-border rounded-lg text-brand-text-muted hover:text-white transition-colors"
+          title="Back to Home"
+        >
+          <XCircle className="w-5 h-5" />
+        </button>
       </div>
       
       <nav className="flex-1 px-2 py-4 space-y-2">
@@ -83,7 +95,7 @@ const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab:
           <span className="font-medium hidden md:block">Settings</span>
         </button>
         <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center border border-brand-accent/20">
             <User className="w-4 h-4" />
           </div>
           <div className="hidden md:block overflow-hidden">
@@ -124,108 +136,151 @@ const Header = ({ title }: { title: string }) => (
 
 // --- Views ---
 
-const GlobalControlTower = () => {
+const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void }) => {
   return (
-    <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Global Portfolio View</h2>
-          <span className="text-sm text-brand-text-muted">Industrial Mission-Critical Dashboard</span>
+    <div className="min-h-screen bg-brand-bg flex flex-col">
+      <header className="h-20 border-b border-brand-border/50 bg-brand-card/30 backdrop-blur-xl flex items-center justify-between px-12 sticky top-0 z-30">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent/20">
+            <Train className="text-white w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Hitachi Rail</h1>
+            <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">Global Operations Command</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
+            <input 
+              type="text" 
+              placeholder="Search Projects, Requirements, Evidence..." 
+              className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-brand-accent w-80 transition-all focus:w-96"
+            />
+          </div>
+          <button className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50">
+            <Settings className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-3 pl-4 border-l border-brand-border/50">
+             <div className="text-right">
+                <p className="text-xs font-bold">H. Evidence</p>
+                <p className="text-[10px] text-brand-text-muted uppercase">Admin</p>
+             </div>
+             <div className="w-10 h-10 rounded-full bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center">
+                <User className="w-5 h-5 text-brand-accent" />
+             </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 p-12 max-w-7xl mx-auto w-full space-y-12">
+        <div className="space-y-2">
+          <h2 className="text-4xl font-black tracking-tight flex items-center gap-4">
+            Welcome, Commander
+            <span className="text-sm font-bold px-3 py-1 bg-brand-success/10 text-brand-success rounded-full border border-brand-success/20 animate-pulse">
+              ALL SYSTEMS ONLINE
+            </span>
+          </h2>
+          <p className="text-brand-text-muted text-lg max-w-2xl">
+            Select an industrial project instance below to begin forensic analysis, traceability validation, or site audit operations.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {projects.map((project) => (
             <motion.div 
               key={project.id}
-              whileHover={{ y: -4 }}
-              className="bg-brand-card border border-brand-border rounded-xl p-5 space-y-4"
+              whileHover={{ scale: 1.02, y: -5 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onSelectProject(project)}
+              className="bg-brand-card/40 border border-brand-border/50 rounded-3xl p-8 space-y-6 cursor-pointer hover:border-brand-accent/50 transition-all hover:shadow-2xl hover:shadow-brand-accent/5"
             >
               <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-brand-text-muted font-mono">ID: {project.id}</p>
-                  <h3 className="text-lg font-bold">{project.name}</h3>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-brand-accent font-black uppercase tracking-[0.2em]">Instance ID: {project.id}</p>
+                  <h3 className="text-2xl font-bold">{project.name}</h3>
                 </div>
                 <span className={cn(
-                  "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider",
-                  project.status === 'BLOCKED' ? "bg-brand-error/20 text-brand-error border border-brand-error/30" :
-                  project.status === 'AT RISK' ? "bg-brand-warning/20 text-brand-warning border border-brand-warning/30" :
-                  "bg-brand-success/20 text-brand-success border border-brand-success/30"
+                  "text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border",
+                  project.status === 'BLOCKED' ? "bg-brand-error/10 text-brand-error border-brand-error/20" :
+                  project.status === 'AT RISK' ? "bg-brand-warning/10 text-brand-warning border-brand-warning/20" :
+                  "bg-brand-success/10 text-brand-success border-brand-success/20"
                 )}>
                   {project.status}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 text-sm text-brand-text-muted">
-                <FileText className="w-4 h-4" />
-                <span>Phase: {project.phase}</span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-4">
                 {[
                   { label: 'SAFETY', status: project.safety },
                   { label: 'HYBRID', status: project.hybrid },
                   { label: 'COMPLIANCE', status: project.compliance }
                 ].map((metric) => (
-                  <div key={metric.label} className="bg-brand-bg/50 rounded-lg p-2 border border-brand-border flex flex-col items-center gap-1">
+                  <div key={metric.label} className="bg-brand-bg/40 rounded-2xl p-4 border border-brand-border/30 flex flex-col items-center gap-2">
                     <div className={cn(
-                      "w-2 h-2 rounded-full",
-                      metric.status === 'critical' ? "bg-brand-error" :
-                      metric.status === 'warning' ? "bg-brand-warning" :
-                      "bg-brand-success"
+                      "w-2.5 h-2.5 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)]",
+                      metric.status === 'critical' ? "bg-brand-error shadow-brand-error/50" :
+                      metric.status === 'warning' ? "bg-brand-warning shadow-brand-warning/50" :
+                      "bg-brand-success shadow-brand-success/50"
                     )}></div>
-                    <span className="text-[10px] font-bold text-brand-text-muted">{metric.label}</span>
+                    <span className="text-[10px] font-black text-brand-text-muted tracking-widest">{metric.label}</span>
                   </div>
                 ))}
+              </div>
+
+              <div className="pt-4 border-t border-brand-border/30 flex items-center justify-between">
+                <div className="flex items-center gap-3 text-sm text-brand-text-muted">
+                  <FileText className="w-4 h-4" />
+                  <span className="font-medium">Phase: {project.phase}</span>
+                </div>
+                <div className="flex items-center gap-2 text-brand-accent font-bold text-xs uppercase tracking-widest bg-brand-accent/5 px-2 py-1 rounded">
+                  Initialize <ChevronRight className="w-3 h-3" />
+                </div>
               </div>
             </motion.div>
           ))}
         </div>
-      </div>
 
-      <div className="space-y-6">
-        <div className="bg-brand-card border border-brand-border rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-brand-accent" />
-              AI INTELLIGENCE HUB
-            </h3>
-            <span className="text-[10px] bg-brand-accent/20 text-brand-accent px-2 py-0.5 rounded font-bold">LIVE</span>
-          </div>
-
-          <div className="space-y-4">
-            <div className="border-l-2 border-brand-error pl-4 py-1 space-y-2">
-              <p className="text-[10px] font-bold text-brand-error uppercase tracking-widest">Critical Safety Alert</p>
-              <h4 className="font-bold text-sm">SSMS Conflict</h4>
-              <p className="text-xs text-brand-text-muted">Inconsistency detected between Email #42 and VDD v1.2.0 (Safety Risk).</p>
-              <button className="w-full py-2 text-xs font-bold border border-brand-error/30 text-brand-error rounded hover:bg-brand-error/10 transition-colors">
-                OPEN RESOLUTION HUB
-              </button>
-            </div>
-
-            <div className="border-l-2 border-brand-warning pl-4 py-1 space-y-2">
-              <p className="text-[10px] font-bold text-brand-warning uppercase tracking-widest">System Warning</p>
-              <h4 className="font-bold text-sm">Frecciarossa Drift</h4>
-              <p className="text-xs text-brand-text-muted">Configuration drift detected in Napoli station (Hardware Mismatch).</p>
-              <button className="w-full py-2 text-xs font-bold border border-brand-warning/30 text-brand-warning rounded hover:bg-brand-warning/10 transition-colors">
-                VERIFY CONFIG
-              </button>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-12">
+           <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-8 space-y-6 lg:col-span-2">
+              <h3 className="text-xl font-bold flex items-center gap-3">
+                 <ShieldCheck className="w-6 h-6 text-brand-accent" />
+                 Global Fleet Intelligence Hub
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <div className="bg-brand-card/40 p-6 rounded-2xl border border-brand-border/50">
+                    <p className="text-[10px] font-black text-brand-error uppercase tracking-widest mb-1">Active Conflict</p>
+                    <h4 className="font-bold">SSMS Consistency Drift</h4>
+                    <p className="text-xs text-brand-text-muted mt-2">Discrepancy in Napoli Station (Project: SSMS) requires immediate review.</p>
+                 </div>
+                 <div className="bg-brand-card/40 p-6 rounded-2xl border border-brand-border/50">
+                    <p className="text-[10px] font-black text-brand-success uppercase tracking-widest mb-1">Compliance Health</p>
+                    <h4 className="font-bold">99.4% Global Accuracy</h4>
+                    <p className="text-xs text-brand-text-muted mt-2">AI-confidence remains high across all active mission-critical instances.</p>
+                 </div>
+              </div>
+           </div>
+           <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-8 flex flex-col justify-center items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-brand-accent/10 rounded-full flex items-center justify-center border border-brand-accent/20">
+                 <LayoutDashboard className="w-8 h-8 text-brand-accent" />
+              </div>
+              <h3 className="font-bold">System Status</h3>
+              <div className="space-y-1">
+                 <p className="text-3xl font-black text-brand-success">ONLINE</p>
+                 <p className="text-[10px] font-bold text-brand-text-muted uppercase">All Engines Active</p>
+              </div>
+           </div>
         </div>
+      </main>
 
-        <div className="bg-brand-card border border-brand-border rounded-xl p-5">
-          <h3 className="font-bold text-sm mb-4">AI CONFIDENCE SCORE</h3>
-          <div className="space-y-2">
-            <div className="h-2 bg-brand-bg rounded-full overflow-hidden">
-              <div className="h-full bg-brand-accent w-[99.4%]"></div>
-            </div>
-            <div className="flex justify-between text-[10px] font-bold text-brand-text-muted">
-              <span>PRECISION: 99.4%</span>
-              <span>RECALL: 97.2%</span>
-            </div>
-          </div>
+      <footer className="h-16 border-t border-brand-border/30 bg-brand-card/20 flex items-center justify-between px-12 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">
+        <span>© 2026 Hitachi Rail STS — Industrial Intelligence</span>
+        <div className="flex gap-8">
+           <span>Privacy Protocol</span>
+           <span>Forensic Guidelines</span>
+           <span className="text-brand-accent">System v4.2.0</span>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };
@@ -416,190 +471,154 @@ const ConsistencyMap = () => {
   );
 };
 
-const SiteValidator = () => {
-  const [selectedStation, setSelectedStation] = useState('napoli');
+
+
+const ProjectDataset = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const dataset = [
+    { name: 'Technical_Specification_v2.pdf', type: 'PDF', size: '4.2 MB', date: '2026-03-15', status: 'Analyzed', category: 'Documentation' },
+    { name: 'Napoli_Station_Layout.dwg', type: 'CAD', size: '15.8 MB', date: '2026-03-20', status: 'Synced', category: 'Engineering' },
+    { name: 'Safety_Requirements_Matrix.xlsx', type: 'XLSX', size: '1.1 MB', date: '2026-03-22', status: 'Needs Review', category: 'Compliance' },
+    { name: 'Telemetry_Log_March_24.csv', type: 'CSV', size: '850 KB', date: '2026-03-24', status: 'Analyzed', category: 'Logs' },
+    { name: 'Interface_Control_Document.pdf', type: 'PDF', size: '2.4 MB', date: '2026-03-10', status: 'Synced', category: 'Documentation' },
+    { name: 'Hardware_BOM_v4.pdf', type: 'PDF', size: '1.2 MB', date: '2026-03-25', status: 'Synced', category: 'Engineering' },
+    { name: 'Station_Nodes_Photo_01.jpg', type: 'IMAGE', size: '3.5 MB', date: '2026-03-21', status: 'Uploaded', category: 'Field Evidence' },
+    { name: 'Email_ Elena_Zhao_Threshold.eml', type: 'EMAIL', size: '45 KB', date: '2026-03-12', status: 'Flagged', category: 'Communication' },
+    { name: 'Legacy_DB_Snapshot.sql', type: 'SQL', size: '12.4 MB', date: '2026-03-14', status: 'Indexed', category: 'Database' },
+    { name: 'Project_Timeline_Q1.pdf', type: 'PDF', size: '0.5 MB', date: '2026-03-01', status: 'Outdated', category: 'Management' },
+  ];
+
+  const filteredData = dataset.filter(file => 
+    file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    file.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getFileIcon = (type: string) => {
+    switch (type) {
+      case 'PDF': return <FileText className="w-5 h-5 text-brand-error" />;
+      case 'XLSX': 
+      case 'CSV': return <TableIcon className="w-5 h-5 text-brand-success" />;
+      case 'IMAGE': return <Image className="w-5 h-5 text-brand-accent" />;
+      case 'CAD': 
+      case 'SQL': return <Database className="w-5 h-5 text-brand-warning" />;
+      default: return <FileArchive className="w-5 h-5 text-brand-text-muted" />;
+    }
+  };
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <div className="w-64 border-r border-brand-border p-4 space-y-6">
-        <div>
-          <h3 className="text-[10px] font-bold text-brand-text-muted uppercase mb-4">Station Selector</h3>
-          <div className="space-y-2">
-            {stations.map((station) => (
-              <button
-                key={station.id}
-                onClick={() => setSelectedStation(station.id)}
-                className={cn(
-                  "w-full text-left p-3 rounded-lg border transition-all",
-                  selectedStation === station.id 
-                    ? "bg-brand-accent/10 border-brand-accent" 
-                    : "bg-brand-card border-brand-border hover:border-brand-text-muted"
-                )}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-sm">{station.name}</span>
-                  {station.status === 'Incompatible' ? <XCircle className="w-3 h-3 text-brand-error" /> :
-                   station.status === 'Version Drift' ? <AlertTriangle className="w-3 h-3 text-brand-warning" /> :
-                   <CheckCircle2 className="w-3 h-3 text-brand-success" />}
-                </div>
-                <p className={cn(
-                  "text-[10px] font-bold uppercase",
-                  station.status === 'Incompatible' ? "text-brand-error" :
-                  station.status === 'Version Drift' ? "text-brand-warning" :
-                  "text-brand-success"
-                )}>
-                  {station.status}
-                </p>
-              </button>
-            ))}
-          </div>
+    <div className="p-8 space-y-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-1">
+          <p className="text-xs text-brand-text-muted font-mono uppercase tracking-widest">Project Repository</p>
+          <h2 className="text-3xl font-black">Project Dataset</h2>
+          <p className="text-sm text-brand-text-muted max-w-xl">
+            Centralized access to all formal documentation, telemetry logs, engineering diagrams, and field evidence indexed for this project instance.
+          </p>
         </div>
-        <div className="mt-auto pt-6 border-t border-brand-border">
-          <div className="bg-brand-card border border-brand-border rounded-lg p-3 flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-brand-success animate-pulse"></div>
-            <span className="text-xs font-bold">System Health: 92%</span>
+        
+        <div className="flex gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
+            <input 
+              type="text" 
+              placeholder="Filter by name or category..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-accent w-64 md:w-80 transition-all focus:md:w-96"
+            />
           </div>
+          <button className="px-6 py-2.5 bg-brand-accent text-white rounded-xl font-bold flex items-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-95 shadow-lg shadow-brand-accent/20">
+            <Download className="w-4 h-4" /> Import Data
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 p-6 overflow-y-auto space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="bg-brand-card/30 border border-brand-border/50 rounded-3xl overflow-hidden backdrop-blur-xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-brand-card/50 border-b border-brand-border/50">
+                <th className="px-6 py-5 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">File Name</th>
+                <th className="px-6 py-5 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">Category</th>
+                <th className="px-6 py-5 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">Size</th>
+                <th className="px-6 py-5 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">Modified</th>
+                <th className="px-6 py-5 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">Analysis Status</th>
+                <th className="px-6 py-5 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-brand-border/30">
+              {filteredData.map((file, i) => (
+                <tr key={i} className="group hover:bg-brand-accent/5 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-brand-bg/60 border border-brand-border/30 flex items-center justify-center group-hover:border-brand-accent/50 transition-colors">
+                        {getFileIcon(file.type)}
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="font-bold text-sm group-hover:text-brand-accent transition-colors">{file.name}</p>
+                        <p className="text-[10px] font-mono text-brand-text-muted uppercase">{file.type} Source</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-xs font-bold text-brand-text-muted uppercase tracking-wider">{file.category}</td>
+                  <td className="px-6 py-4 text-xs font-mono text-brand-text-muted">{file.size}</td>
+                  <td className="px-6 py-4 text-xs text-brand-text-muted">{file.date}</td>
+                  <td className="px-6 py-4">
+                    <span className={cn(
+                      "text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest border",
+                      file.status === 'Analyzed' || file.status === 'Synced' ? "bg-brand-success/10 text-brand-success border-brand-success/30" :
+                      file.status === 'Flagged' || file.status === 'Needs Review' ? "bg-brand-error/10 text-brand-error border-brand-error/30" :
+                      file.status === 'Outdated' ? "bg-brand-warning/10 text-brand-warning border-brand-warning/30" :
+                      "bg-brand-bg/50 text-brand-text-muted border-brand-border/50"
+                    )}>
+                      {file.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button className="p-1.5 hover:bg-brand-accent/20 rounded-lg text-brand-accent hover:text-white transition-all">
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                      <button className="p-1.5 hover:bg-brand-success/20 rounded-lg text-brand-success hover:text-white transition-all">
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-6 flex items-center gap-6">
+          <div className="w-14 h-14 bg-brand-accent/10 rounded-2xl flex items-center justify-center border border-brand-accent/20 shrink-0">
+            <FileText className="w-7 h-7 text-brand-accent" />
+          </div>
           <div>
-            <p className="text-xs text-brand-text-muted font-mono">VALIDATOR / NAPOLI CENTRALE AUDIT</p>
-            <h2 className="text-3xl font-bold">Site Audit: Napoli Centrale</h2>
-            <p className="text-sm text-brand-text-muted">Configuration Drift Analysis & Site Validation Evidence</p>
-          </div>
-          <span className="px-3 py-1 bg-brand-error/20 text-brand-error border border-brand-error/30 rounded-full text-xs font-bold uppercase tracking-widest">
-            ● Incompatible
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-brand-card border border-brand-border rounded-xl p-6 space-y-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <Cloud className="w-16 h-16" />
-            </div>
-            <h3 className="font-bold flex items-center gap-2 text-brand-accent uppercase text-xs tracking-widest">
-              <Cloud className="w-4 h-4" /> Cloud Baseline (Goal)
-            </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center border-b border-brand-border pb-2">
-                <span className="text-sm text-brand-text-muted">Version</span>
-                <span className="font-bold">v1.2.0</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-brand-border pb-2">
-                <span className="text-sm text-brand-text-muted">Database</span>
-                <span className="font-bold">PostgreSQL 15</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-brand-text-muted">Network</span>
-                <span className="font-bold">High-bandwidth API</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-brand-card border border-brand-border rounded-xl p-6 space-y-4 relative overflow-hidden border-l-4 border-l-brand-error">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <Train className="w-16 h-16" />
-            </div>
-            <h3 className="font-bold flex items-center gap-2 text-brand-error uppercase text-xs tracking-widest">
-              <Train className="w-4 h-4" /> Station Actual (Reality)
-            </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center border-b border-brand-border pb-2">
-                <span className="text-sm text-brand-text-muted">Version</span>
-                <span className="font-bold text-brand-error">v1.1.5 ↘</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-brand-border pb-2">
-                <span className="text-sm text-brand-text-muted">Database</span>
-                <span className="font-bold text-brand-error">PostgreSQL 12 !</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-brand-text-muted">Network</span>
-                <span className="font-bold">Limited Local Connectivity</span>
-              </div>
-            </div>
+            <p className="text-3xl font-black leading-none">124</p>
+            <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em] mt-1">Total Indexed Documents</p>
           </div>
         </div>
-
-        <div className="bg-brand-error/10 border border-brand-error/30 rounded-xl p-5 flex gap-4">
-          <div className="w-10 h-10 rounded-lg bg-brand-error/20 flex items-center justify-center shrink-0">
-            <AlertTriangle className="text-brand-error w-6 h-6" />
+        <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-6 flex items-center gap-6">
+          <div className="w-14 h-14 bg-brand-success/10 rounded-2xl flex items-center justify-center border border-brand-success/20 shrink-0">
+            <Database className="w-7 h-7 text-brand-success" />
           </div>
-          <div className="space-y-1">
-            <p className="text-[10px] font-bold text-brand-error uppercase tracking-widest">AI Risk Analysis</p>
-            <p className="text-sm">
-              The <span className="font-bold">v1.2.0 Data Collector</span> requires PostgreSQL 15 features (JSONB acceleration). Deployment to Napoli will fail due to local database version 12.
-            </p>
+          <div>
+            <p className="text-3xl font-black leading-none">8.4 GB</p>
+            <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em] mt-1">Telemtry Data Volume</p>
           </div>
         </div>
-
-        <div className="bg-brand-card border border-brand-border rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm">Field Evidence</h3>
-            <span className="text-[10px] text-brand-text-muted">Last updated: 14/03/2026</span>
+        <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-6 flex items-center gap-6">
+          <div className="w-14 h-14 bg-brand-error/10 rounded-2xl flex items-center justify-center border border-brand-error/20 shrink-0">
+            <AlertTriangle className="w-7 h-7 text-brand-error" />
           </div>
-          <div className="flex gap-4 items-start bg-brand-bg/50 p-4 rounded-lg border border-brand-border">
-            <MessageSquare className="w-5 h-5 text-brand-text-muted shrink-0 mt-1" />
-            <p className="text-sm text-brand-text-muted italic">
-              "Reference: Email from Site Tech (14/03) - Local DB update in Napoli failed due to hardware constraints. Site is stuck on legacy schema and cannot facilitate the v1.2 stack until storage controllers are swapped."
-            </p>
+          <div>
+            <p className="text-3xl font-black leading-none">03</p>
+            <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em] mt-1">Pending Integrity Flags</p>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-brand-card border border-brand-border rounded-xl p-6 flex flex-col items-center justify-center space-y-4">
-            <h3 className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">Readiness Score</h3>
-            <div className="relative w-32 h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={[{ value: 42 }, { value: 58 }]}
-                    innerRadius={45}
-                    outerRadius={60}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey="value"
-                  >
-                    <Cell fill="#0ea5e9" />
-                    <Cell fill="#1e2d3d" />
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold">42%</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-brand-card border border-brand-border rounded-xl p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">Sync Progress</h3>
-              <span className="text-[10px] font-bold text-brand-accent uppercase">Pre-check Stage 2/5</span>
-            </div>
-            <div className="space-y-4">
-              <div className="h-2 bg-brand-bg rounded-full overflow-hidden">
-                <div className="h-full bg-brand-accent w-[40%]"></div>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-[8px] font-bold text-center">
-                <div className="text-brand-success">AUTH</div>
-                <div className="text-brand-success">CONNECTIVITY</div>
-                <div className="text-brand-error">SCHEMA MATCH</div>
-                <div className="text-brand-text-muted">PROMOTION</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-2 border-dashed border-brand-border rounded-xl p-8 flex flex-col items-center justify-center space-y-4 bg-brand-bg/20">
-          <AlertTriangle className="w-8 h-8 text-brand-warning opacity-50" />
-          <p className="text-sm text-brand-text-muted text-center max-w-md">
-            Deployment Blocked: Configuration drift must be resolved before promotion.
-          </p>
-          <button disabled className="px-8 py-3 bg-brand-border text-brand-text-muted rounded-lg font-bold flex items-center gap-2 cursor-not-allowed">
-            <ShieldCheck className="w-5 h-5" /> Authorize Site Promotion
-          </button>
-          <p className="text-[10px] text-brand-text-muted italic">Manual override requires Senior Infrastructure Engineering credentials.</p>
         </div>
       </div>
     </div>
@@ -963,52 +982,66 @@ const VDDLibrary = () => {
 // --- Main App ---
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('tower');
+  const [activeTab, setActiveTab] = useState('consistency');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const getTitle = () => {
+    if (!selectedProject) return 'Home';
     switch (activeTab) {
-      case 'tower': return 'Global Control Tower';
-      case 'consistency': return 'SSMS - Smart Station Monitoring System';
-      case 'validator': return 'Site Validator';
-      case 'chat': return 'Insight Chat - SSMS Project';
-      case 'vdd': return 'Governance & Compliance';
-      default: return 'Hitachi Rail SSMS';
+      case 'consistency': return `Consistency Map - ${selectedProject.name}`;
+      case 'dataset': return `Project Dataset - ${selectedProject.name}`;
+      case 'chat': return `Insight Chat - ${selectedProject.name}`;
+      case 'vdd': return `VDD Library - ${selectedProject.name}`;
+      default: return selectedProject.name;
     }
   };
 
+  if (!selectedProject) {
+    return <Home onSelectProject={(p) => {
+      setSelectedProject(p);
+      setActiveTab('consistency');
+    }} />;
+  }
+
   return (
     <div className="flex h-screen bg-brand-bg text-white overflow-hidden">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onBackHome={() => setSelectedProject(null)} 
+      />
       
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Background gradient for project view */}
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-accent/5 via-transparent to-transparent pointer-events-none" />
+        
         <Header title={getTitle()} />
         
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto z-10">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              key={`${selectedProject.id}-${activeTab}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
               className="h-full"
             >
-              {activeTab === 'tower' && <GlobalControlTower />}
               {activeTab === 'consistency' && <ConsistencyMap />}
-              {activeTab === 'validator' && <SiteValidator />}
+              {activeTab === 'dataset' && <ProjectDataset />}
               {activeTab === 'chat' && <InsightChat />}
               {activeTab === 'vdd' && <VDDLibrary />}
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <footer className="h-10 border-t border-brand-border bg-brand-card flex items-center justify-between px-6 text-[10px] font-bold text-brand-text-muted">
+        <footer className="h-10 border-t border-brand-border bg-brand-card flex items-center justify-between px-6 text-[10px] font-bold text-brand-text-muted z-10">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 uppercase tracking-widest">
-              <ShieldCheck className="w-3 h-3" /> Hitachi Secure Environment
+            <span className="flex items-center gap-1 uppercase tracking-widest text-brand-accent">
+               PROJECT INSTANCE: {selectedProject.id}
             </span>
             <span className="flex items-center gap-1 uppercase tracking-widest">
-              <Database className="w-3 h-3" /> Forensic Data Replication: Active
+              <ShieldCheck className="w-3 h-3" /> Hitachi Secure Environment
             </span>
           </div>
           <div className="flex items-center gap-4">
