@@ -638,13 +638,25 @@ const InsightChat = () => {
               { type: 'email', name: 'Re: Napoli Threshold', desc: 'ELENA ZHAO (LEAD QA)' },
               { type: 'db', name: 'Legacy_Schema_v4.sql', desc: 'SQL EVIDENCE' }
             ].map((doc, i) => (
-              <div key={i} className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-1 hover:border-brand-accent transition-colors cursor-pointer">
+              <div 
+                key={i} 
+                onClick={() => {
+                  if (doc.name.includes('VDD')) {
+                    const btn = document.getElementById('vdd-download-btn');
+                    if (btn) btn.click();
+                  } else {
+                    alert(`Opening ${doc.name} for review...`);
+                  }
+                }}
+                className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-1 hover:border-brand-accent transition-colors cursor-pointer group"
+              >
                 <div className="flex items-center gap-2">
                   {doc.type === 'pdf' ? <FileText className="w-4 h-4 text-brand-error" /> :
                    doc.type === 'doc' ? <FileText className="w-4 h-4 text-brand-accent" /> :
                    doc.type === 'email' ? <MessageSquare className="w-4 h-4 text-brand-warning" /> :
                    <Database className="w-4 h-4 text-brand-success" />}
-                  <span className="text-xs font-bold truncate">{doc.name}</span>
+                  <span className="text-xs font-bold truncate flex-1">{doc.name}</span>
+                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
                 </div>
                 <p className="text-[8px] font-bold text-brand-text-muted uppercase">{doc.desc}</p>
               </div>
@@ -652,8 +664,11 @@ const InsightChat = () => {
           </div>
         </div>
 
-        <button className="w-full py-3 bg-brand-accent text-white rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-brand-accent/20">
-          <Download className="w-4 h-4" /> Generate Stakeholder Summary
+        <button className="w-full py-3 px-4 bg-brand-accent text-white rounded-lg font-bold flex items-center justify-center gap-3 shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-all active:scale-[0.98]">
+          <Download className="w-5 h-5 shrink-0" />
+          <span className="text-sm leading-tight text-center">
+            Generate Stakeholder Summary
+          </span>
         </button>
       </div>
 
@@ -786,8 +801,42 @@ const InsightChat = () => {
 
 const VDDLibrary = () => {
   return (
-    <div className="p-6 flex justify-center">
-      <div className="max-w-4xl w-full bg-white text-slate-900 rounded-none shadow-2xl p-12 space-y-12 min-h-[1100px] relative">
+    <div className="p-6 flex flex-col items-center gap-6 overflow-y-auto h-full">
+      <div className="max-w-4xl w-full flex justify-end">
+        <button 
+          onClick={() => {
+            const btn = document.getElementById('vdd-download-btn') as HTMLButtonElement | null;
+            if (btn) {
+              const originalContent = btn.innerHTML;
+              btn.disabled = true;
+              btn.innerHTML = '<span class="animate-spin mr-2">◌</span> Preparing Secure PDF...';
+              
+              setTimeout(() => {
+                btn.innerHTML = '<span class="animate-pulse mr-2">●</span> Encrypting...';
+                setTimeout(() => {
+                  btn.innerHTML = '<span class="mr-2">✓</span> Download Started';
+                  // Actual "download" trigger
+                  const link = document.createElement('a');
+                  link.href = 'javascript:void(0)';
+                  link.onclick = () => alert('Mock: VDD_v1.2.0.pdf downloaded successfully.');
+                  link.click();
+                  
+                  setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                  }, 3000);
+                }, 1000);
+              }, 1500);
+            }
+          }}
+          id="vdd-download-btn"
+          className="flex items-center gap-2 px-4 py-2 bg-brand-accent text-white rounded-lg font-bold shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-all active:scale-95"
+        >
+          <Download className="w-4 h-4" />
+          Download VDD (PDF)
+        </button>
+      </div>
+      <div className="max-w-4xl w-full bg-white text-slate-900 rounded-none shadow-2xl p-12 space-y-12 min-h-[1100px] relative mb-12">
         <div className="absolute top-12 right-12 border-4 border-brand-warning text-brand-warning font-black px-4 py-2 rotate-12 text-center leading-tight">
           AI-VALIDATED<br />READY FOR REVIEW<br />● ● ●
         </div>
