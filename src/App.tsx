@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+// @ts-ignore
+import { toPng } from 'html-to-image';
+// @ts-ignore
+import jsPDF from 'jspdf';
 import { 
   LayoutDashboard, 
   Map, 
@@ -56,18 +60,18 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
   return (
     <aside className="w-16 md:w-64 bg-brand-card border-r border-brand-border flex flex-col h-screen sticky top-0 z-20">
       <div className="p-4 flex items-center justify-between border-b border-brand-border mb-2">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-brand-accent rounded flex items-center justify-center">
-            <Train className="text-white w-5 h-5" />
-          </div>
-          <span className="font-bold text-lg hidden md:block">Hitachi Rail</span>
-        </div>
         <button 
           onClick={onBackHome}
-          className="p-1.5 hover:bg-brand-border rounded-lg text-brand-text-muted hover:text-white transition-colors"
-          title="Back to Home"
+          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity text-left outline-none"
+          title="Return to Home Dashboard"
         >
-          <XCircle className="w-5 h-5" />
+          <div className="w-10 h-10 bg-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent/20 shrink-0">
+            <Train className="text-white w-6 h-6" />
+          </div>
+          <div className="hidden md:block">
+            <h1 className="text-xl font-bold tracking-tight leading-tight">Hitachi Rail</h1>
+            <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest leading-tight">Global Operations Command</p>
+          </div>
         </button>
       </div>
       
@@ -819,35 +823,57 @@ const InsightChat = () => {
 };
 
 const VDDLibrary = () => {
+  const handleDownload = async () => {
+    const btn = document.getElementById('vdd-download-btn') as HTMLButtonElement | null;
+    if (!btn) return;
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-spin mr-2">◌</span> Preparing Pages...';
+    
+    try {
+      const page1 = document.getElementById('vdd-page-1');
+      const page2 = document.getElementById('vdd-page-2');
+      if (!page1 || !page2) throw new Error('Could not find all report pages.');
+
+      const opt = { quality: 1, backgroundColor: '#ffffff' };
+      const [img1, img2] = await Promise.all([
+        toPng(page1, opt),
+        toPng(page2, opt)
+      ]);
+
+      btn.innerHTML = '<span class="animate-pulse mr-2">●</span> Encoding Document...';
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'px',
+        format: [800, 1130],
+        hotfixes: ["px_scaling"]
+      });
+
+      pdf.addImage(img1, 'PNG', 0, 0, 800, 1130);
+      pdf.addPage();
+      pdf.addImage(img2, 'PNG', 0, 0, 800, 1130);
+      
+      pdf.save('VDD_v1.2.0.pdf');
+      
+      btn.innerHTML = '<span class="mr-2">✓</span> Download Complete';
+      setTimeout(() => {
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+      }, 3000);
+
+    } catch (err: any) {
+      console.error(err);
+      alert('Error generating PDF: ' + (err.message || String(err)));
+      btn.innerHTML = originalContent;
+      btn.disabled = false;
+    }
+  };
+
   return (
-    <div className="p-6 flex flex-col items-center gap-6 overflow-y-auto h-full">
-      <div className="max-w-4xl w-full flex justify-end">
+    <div className="p-6 flex flex-col items-center gap-6 overflow-y-auto h-full pb-24">
+      <div className="w-[800px] flex justify-end shrink-0">
         <button 
-          onClick={() => {
-            const btn = document.getElementById('vdd-download-btn') as HTMLButtonElement | null;
-            if (btn) {
-              const originalContent = btn.innerHTML;
-              btn.disabled = true;
-              btn.innerHTML = '<span class="animate-spin mr-2">◌</span> Preparing Secure PDF...';
-              
-              setTimeout(() => {
-                btn.innerHTML = '<span class="animate-pulse mr-2">●</span> Encrypting...';
-                setTimeout(() => {
-                  btn.innerHTML = '<span class="mr-2">✓</span> Download Started';
-                  // Actual "download" trigger
-                  const link = document.createElement('a');
-                  link.href = 'javascript:void(0)';
-                  link.onclick = () => alert('Mock: VDD_v1.2.0.pdf downloaded successfully.');
-                  link.click();
-                  
-                  setTimeout(() => {
-                    btn.innerHTML = originalContent;
-                    btn.disabled = false;
-                  }, 3000);
-                }, 1000);
-              }, 1500);
-            }
-          }}
+          onClick={handleDownload}
           id="vdd-download-btn"
           className="flex items-center gap-2 px-4 py-2 bg-brand-accent text-white rounded-lg font-bold shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-all active:scale-95"
         >
@@ -855,7 +881,8 @@ const VDDLibrary = () => {
           Download VDD (PDF)
         </button>
       </div>
-      <div className="max-w-4xl w-full bg-white text-slate-900 rounded-none shadow-2xl p-12 space-y-12 min-h-[1100px] relative mb-12">
+
+      <div id="vdd-page-1" className="w-[800px] h-[1130px] bg-white text-slate-900 rounded-none shadow-2xl p-12 space-y-12 relative shrink-0">
         <div className="absolute top-12 right-12 border-4 border-brand-warning text-brand-warning font-black px-4 py-2 rotate-12 text-center leading-tight">
           AI-VALIDATED<br />READY FOR REVIEW<br />● ● ●
         </div>
@@ -924,7 +951,9 @@ const VDDLibrary = () => {
             ))}
           </div>
         </section>
+      </div>
 
+      <div id="vdd-page-2" className="w-[800px] h-[1130px] bg-white text-slate-900 rounded-none shadow-2xl p-12 space-y-12 relative shrink-0">
         <section className="space-y-6">
           <h3 className="text-xl font-bold bg-slate-100 px-4 py-2 border-l-4 border-slate-900">3. TEST SUMMARY</h3>
           <div className="grid grid-cols-2 gap-12">
