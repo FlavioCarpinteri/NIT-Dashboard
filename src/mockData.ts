@@ -1,3 +1,10 @@
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -6,6 +13,8 @@ export interface Project {
   safety: 'healthy' | 'warning' | 'critical';
   hybrid: 'healthy' | 'warning' | 'critical';
   compliance: 'healthy' | 'warning' | 'critical';
+  hasAccess: boolean;
+  team: TeamMember[];
 }
 
 export const projects: Project[] = [
@@ -17,6 +26,11 @@ export const projects: Project[] = [
     safety: 'critical',
     hybrid: 'healthy',
     compliance: 'warning',
+    hasAccess: true,
+    team: [
+      { id: 'u1', name: 'H. Evidence', role: 'Admin', email: 'h.evidence@hitachirail.com' },
+      { id: 'u2', name: 'Elena Zhao', role: 'Lead QA', email: 'e.zhao@hitachirail.com' }
+    ]
   },
   {
     id: 'HR-042',
@@ -26,6 +40,10 @@ export const projects: Project[] = [
     safety: 'healthy',
     hybrid: 'warning',
     compliance: 'healthy',
+    hasAccess: true,
+    team: [
+      { id: 'u1', name: 'H. Evidence', role: 'Admin', email: 'h.evidence@hitachirail.com' }
+    ]
   },
   {
     id: 'HR-015',
@@ -35,6 +53,11 @@ export const projects: Project[] = [
     safety: 'healthy',
     hybrid: 'healthy',
     compliance: 'healthy',
+    hasAccess: true,
+    team: [
+      { id: 'u1', name: 'H. Evidence', role: 'Admin', email: 'h.evidence@hitachirail.com' },
+      { id: 'u3', name: 'Marco Rossi', role: 'Engineer', email: 'm.rossi@hitachirail.com' }
+    ]
   },
   {
     id: 'HR-099',
@@ -44,6 +67,10 @@ export const projects: Project[] = [
     safety: 'healthy',
     hybrid: 'healthy',
     compliance: 'healthy',
+    hasAccess: false,
+    team: [
+      { id: 'u4', name: 'G. Verdi', role: 'Admin', email: 'g.verdi@hitachirail.com' }
+    ]
   },
 ];
 

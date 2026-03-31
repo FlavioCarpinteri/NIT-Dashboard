@@ -30,7 +30,8 @@ import {
   FileArchive,
   Image,
   Table as TableIcon,
-  LogOut
+  LogOut,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -145,11 +146,77 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   const [searchQuery, setSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
-  const filteredProjects = projects.filter(p => 
+  // User state simulates the backend
+  const [localProjects, setLocalProjects] = useState(projects);
+  const [notifications, setNotifications] = useState<{id: string, userName: string, projectName: string, projectId: string}[]>([
+    { id: 'notif-preset', userName: 'Marco Rossi', projectName: 'ETCS Signal Control', projectId: 'HR-015' }
+  ]);
+  const [accessRequestModal, setAccessRequestModal] = useState<Project | null>(null);
+  const [manageAccessModal, setManageAccessModal] = useState<Project | null>(null);
+
+  const filteredProjects = localProjects.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     p.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const requestAccess = (project: Project) => {
+    // Check if a request for this project already exists
+    if (!notifications.some(n => n.projectId === project.id && n.userName === 'H. Evidence')) {
+      setNotifications([...notifications, { id: Math.random().toString(), userName: 'H. Evidence', projectName: project.name, projectId: project.id }]);
+    }
+    setAccessRequestModal(null);
+  };
+
+  const approveAccess = (notifId: string, projectId: string, userName: string) => {
+    setLocalProjects(localProjects.map(p => {
+      if (p.id === projectId) {
+        // If it was our own request, grant us access
+        if (userName === 'H. Evidence') {
+          return { ...p, hasAccess: true, team: [...p.team, { id: 'u1', name: 'H. Evidence', role: 'Admin', email: 'h.evidence@hitachirail.com' }] };
+        }
+        // Otherwise just add them to the team
+        return { ...p, team: [...p.team, { id: `u-${Math.random()}`, name: userName, role: 'Viewer', email: userName.toLowerCase().replace(' ', '.') + '@hitachirail.com' }] };
+      }
+      return p;
+    }));
+    setNotifications(notifications.filter(n => n.id !== notifId));
+  };
+
+  const removeUser = (projectId: string, userId: string) => {
+    setLocalProjects(localProjects.map(p => {
+      if (p.id === projectId) {
+        return { 
+          ...p, 
+          team: p.team.filter(m => m.id !== userId),
+          hasAccess: userId === 'u1' ? false : p.hasAccess
+        };
+      }
+      return p;
+    }));
+    setManageAccessModal(prev => {
+      if (prev && prev.id === projectId) {
+         return { 
+           ...prev, 
+           team: prev.team.filter(m => m.id !== userId),
+           hasAccess: userId === 'u1' ? false : prev.hasAccess
+         };
+      }
+      return prev;
+    });
+    if (userId === 'u1') {
+      setManageAccessModal(null);
+    }
+  };
+
+  const handleProjectClick = (project: Project) => {
+    if (project.hasAccess) {
+      onSelectProject(project);
+    } else {
+      setAccessRequestModal(project);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-brand-bg flex flex-col">
@@ -175,6 +242,52 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
             />
           </div>
           
+          <div className="flex gap-2">
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50 relative cursor-pointer"
+              >
+                <Bell className="w-5 h-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-brand-error rounded-full border-2 border-brand-bg animate-pulse"></span>
+                )}
+              </button>
+              <AnimatePresence>
+                {isNotificationsOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 mt-2 w-80 bg-brand-card border border-brand-border/50 rounded-xl shadow-xl overflow-hidden z-50"
+                  >
+                    <div className="p-3 border-b border-brand-border/50 bg-brand-card/80 flex items-center justify-between">
+                      <p className="text-sm font-bold text-white">Notifications ({notifications.length})</p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="p-4 text-xs text-brand-text-muted text-center">No new notifications</p>
+                      ) : (
+                        notifications.map(notif => (
+                          <div key={notif.id} className="p-4 border-b border-brand-border/50 hover:bg-brand-accent/5 flex flex-col gap-2 transition-colors">
+                            <p className="text-xs text-slate-300">
+                              <span className="font-bold text-white">{notif.userName}</span> requested access to <span className="font-bold text-brand-accent">{notif.projectName}</span>
+                            </p>
+                            <button 
+                              onClick={() => approveAccess(notif.id, notif.projectId, notif.userName)}
+                              className="self-end px-3 py-1 bg-brand-success/20 text-brand-success border border-brand-success/30 rounded text-xs font-bold hover:bg-brand-success hover:text-white transition-colors cursor-pointer"
+                            >
+                              Approve
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
           <div className="relative">
             <button 
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -199,6 +312,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
               )}
             </AnimatePresence>
           </div>
+        </div>
 
           <div className="relative flex items-center gap-3 pl-4 border-l border-brand-border/50">
              <div className="text-right">
@@ -256,15 +370,23 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
           {filteredProjects.map((project) => (
             <motion.div 
               key={project.id}
-              whileHover={{ scale: 1.02, y: -5 }}
+              whileHover={{ scale: project.hasAccess ? 1.02 : 1.01, y: project.hasAccess ? -5 : -2 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onSelectProject(project)}
-              className="bg-brand-card/40 border border-brand-border/50 rounded-3xl p-8 space-y-6 cursor-pointer hover:border-brand-accent/50 transition-all hover:shadow-2xl hover:shadow-brand-accent/5"
+              onClick={() => handleProjectClick(project)}
+              className={cn(
+                "bg-brand-card/40 border rounded-3xl p-8 space-y-6 cursor-pointer transition-all",
+                project.hasAccess 
+                  ? "border-brand-border/50 hover:border-brand-accent/50 hover:shadow-2xl hover:shadow-brand-accent/5" 
+                  : "border-brand-border/30 opacity-60 hover:opacity-100 hover:border-brand-border/80"
+              )}
             >
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <p className="text-[10px] text-brand-accent font-black uppercase tracking-[0.2em]">Instance ID: {project.id}</p>
-                  <h3 className="text-2xl font-bold">{project.name}</h3>
+                  <h3 className="text-2xl font-bold flex items-center gap-2">
+                    {project.name}
+                    {!project.hasAccess && <Lock className="w-5 h-5 text-brand-text-muted" />}
+                  </h3>
                 </div>
                 <span className={cn(
                   "text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border",
@@ -299,9 +421,26 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                   <FileText className="w-4 h-4" />
                   <span className="font-medium">Phase: {project.phase}</span>
                 </div>
-                <div className="flex items-center gap-2 text-brand-accent font-bold text-xs uppercase tracking-widest bg-brand-accent/5 px-2 py-1 rounded">
-                  Initialize <ChevronRight className="w-3 h-3" />
-                </div>
+                {project.hasAccess ? (
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setManageAccessModal(project); }}
+                      className="flex items-center gap-2 text-brand-text-muted hover:text-white font-bold text-xs uppercase tracking-widest bg-brand-bg/50 border border-brand-border/50 hover:border-brand-text-muted px-2 py-1 rounded transition-colors"
+                    >
+                      <ShieldCheck className="w-3 h-3" /> Manage Access
+                    </button>
+                    <button 
+                       onClick={(e) => { e.stopPropagation(); handleProjectClick(project); }}
+                       className="flex items-center gap-2 text-brand-accent font-bold text-xs uppercase tracking-widest bg-brand-accent/5 px-2 py-1 rounded hover:bg-brand-accent/10 transition-colors"
+                    >
+                      Initialize <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-brand-text-muted font-bold text-xs uppercase tracking-widest bg-brand-bg/50 border border-brand-border/50 px-2 py-1 rounded">
+                    <Lock className="w-3 h-3" /> Restricted
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
@@ -347,6 +486,110 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
            <span className="text-brand-accent">System v4.2.0</span>
         </div>
       </footer>
+
+      {/* Access Request Modal */}
+      <AnimatePresence>
+        {accessRequestModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-md w-full shadow-2xl relative"
+            >
+              <button 
+                onClick={() => setAccessRequestModal(null)}
+                className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+              
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-brand-warning/10 border border-brand-warning/20 rounded-xl flex items-center justify-center">
+                  <Lock className="w-6 h-6 text-brand-warning" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">Access Restricted</h3>
+                  <p className="text-xs text-brand-text-muted uppercase tracking-widest">ID: {accessRequestModal.id}</p>
+                </div>
+              </div>
+              
+              <p className="text-sm text-slate-300 mb-6">
+                You do not currently have clearance to access <span className="font-bold text-white">{accessRequestModal.name}</span>. This workspace may contain sensitive telemetry or forensic data.
+              </p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setAccessRequestModal(null)}
+                  className="flex-1 py-2 rounded-lg font-bold border border-brand-border/50 text-brand-text-muted hover:text-white transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => requestAccess(accessRequestModal)}
+                  className="flex-1 py-2 rounded-lg font-bold bg-brand-accent text-white hover:bg-brand-accent/90 transition-colors shadow-lg shadow-brand-accent/20 cursor-pointer"
+                >
+                  Request Access
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Manage Access Modal */}
+      <AnimatePresence>
+        {manageAccessModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative"
+            >
+              <button 
+                onClick={() => setManageAccessModal(null)}
+                className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+              
+              <div className="mb-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-brand-accent" /> Manage Project Access
+                </h3>
+                <p className="text-xs text-brand-text-muted mt-1">Instance: {manageAccessModal.name}</p>
+              </div>
+
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                {manageAccessModal.team.map(member => (
+                   <div key={member.id} className="flex justify-between items-center p-3 bg-brand-bg/40 border border-brand-border/50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-brand-accent/20 flex items-center justify-center text-brand-accent font-bold text-[10px]">
+                           {member.name.substring(0,2).toUpperCase()}
+                         </div>
+                         <div>
+                           <p className="text-sm font-bold text-white">{member.name}</p>
+                           <p className="text-[10px] text-brand-text-muted">{member.email}</p>
+                         </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-brand-text-muted uppercase px-2 py-1 bg-brand-bg rounded border border-brand-border">{member.role}</span>
+                        <button 
+                          onClick={() => removeUser(manageAccessModal.id, member.id)}
+                          className="text-brand-error hover:text-white hover:bg-brand-error/20 p-1.5 rounded-lg transition-colors cursor-pointer"
+                          title="Revoke Access"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                   </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
