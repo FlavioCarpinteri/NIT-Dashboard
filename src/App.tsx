@@ -29,7 +29,8 @@ import {
   Files,
   FileArchive,
   Image,
-  Table as TableIcon
+  Table as TableIcon,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -141,6 +142,15 @@ const Header = ({ title }: { title: string }) => (
 // --- Views ---
 
 const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const filteredProjects = projects.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-brand-bg flex flex-col">
       <header className="h-20 border-b border-brand-border/50 bg-brand-card/30 backdrop-blur-xl flex items-center justify-between px-12 sticky top-0 z-30">
@@ -158,21 +168,73 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
             <input 
               type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Projects, Requirements, Evidence..." 
               className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-brand-accent w-80 transition-all focus:w-96"
             />
           </div>
-          <button className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50">
-            <Settings className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-3 pl-4 border-l border-brand-border/50">
+          
+          <div className="relative">
+            <button 
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50 cursor-pointer"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            <AnimatePresence>
+              {isSettingsOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute right-0 mt-2 w-48 bg-brand-card border border-brand-border/50 rounded-xl shadow-xl overflow-hidden z-50"
+                >
+                  <div className="p-2 flex flex-col">
+                    <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Profile Settings</button>
+                    <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Workspace Prefs</button>
+                    <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Security</button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="relative flex items-center gap-3 pl-4 border-l border-brand-border/50">
              <div className="text-right">
                 <p className="text-xs font-bold">H. Evidence</p>
                 <p className="text-[10px] text-brand-text-muted uppercase">Admin</p>
              </div>
-             <div className="w-10 h-10 rounded-full bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center">
+             <button
+               onClick={() => setIsProfileOpen(!isProfileOpen)} 
+               className="w-10 h-10 rounded-full bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center hover:bg-brand-accent/20 transition-all cursor-pointer"
+             >
                 <User className="w-5 h-5 text-brand-accent" />
-             </div>
+             </button>
+
+            <AnimatePresence>
+              {isProfileOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute right-0 top-full mt-2 w-56 bg-brand-card border border-brand-border/50 rounded-xl shadow-xl overflow-hidden z-50"
+                >
+                  <div className="p-4 border-b border-brand-border/50">
+                    <p className="text-sm font-bold text-white">h_evidence_admin</p>
+                    <p className="text-[10px] text-brand-text-muted uppercase">Global Operations</p>
+                  </div>
+                  <div className="p-2 flex flex-col">
+                    <button 
+                       onClick={() => alert('Logout action triggered')}
+                       className="px-4 py-2 text-sm text-left hover:bg-brand-error/10 text-brand-error rounded-lg flex items-center gap-2 transition-colors font-semibold cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" /> Logout
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </header>
@@ -191,7 +253,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {projects.map((project) => (
+          {filteredProjects.map((project) => (
             <motion.div 
               key={project.id}
               whileHover={{ scale: 1.02, y: -5 }}
