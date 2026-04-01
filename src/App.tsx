@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { AuthView } from './components/AuthView';
 // @ts-ignore
 import { toPng } from 'html-to-image';
 // @ts-ignore
@@ -35,7 +36,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
-import { projects, requirements, stations, Project, Requirement, Station } from './mockData';
+import { projects as mockProjects, requirements as mockRequirements, stations, Project, Requirement, Station } from './mockData';
+import { useProjects, useProject, useRequirements, useFiles } from './hooks/useSupabase';
 import { 
   BarChart, 
   Bar, 
@@ -148,8 +150,15 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
-  // User state simulates the backend
-  const [localProjects, setLocalProjects] = useState(projects);
+  // Supabase Data
+  const { projects: dbProjects, loading } = useProjects();
+  const [localProjects, setLocalProjects] = useState<Project[]>([]);
+  
+  React.useEffect(() => {
+    if (dbProjects) {
+      setLocalProjects(dbProjects);
+    }
+  }, [dbProjects]);
   const [notifications, setNotifications] = useState<{id: string, userName: string, projectName: string, projectId: string}[]>([
     { id: 'notif-preset', userName: 'Marco Rossi', projectName: 'ETCS Signal Control', projectId: 'HR-015' }
   ]);
@@ -340,8 +349,8 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                   </div>
                   <div className="p-2 flex flex-col">
                     <button 
-                       onClick={() => alert('Logout action triggered')}
-                       className="px-4 py-2 text-sm text-left hover:bg-brand-error/10 text-brand-error rounded-lg flex items-center gap-2 transition-colors font-semibold cursor-pointer"
+                       onClick={() => supabase.auth.signOut()}
+                       className="px-4 py-2 text-sm text-left hover:bg-brand-error/10 text-brand-error rounded-lg flex items-center gap-2 transition-colors font-semibold cursor-pointer w-full"
                     >
                       <LogOut className="w-4 h-4" /> Logout
                     </button>
@@ -367,6 +376,15 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {filteredProjects.length === 0 && !loading && (
+            <div className="col-span-full py-20 text-center bg-brand-card/20 border border-dashed border-brand-border/50 rounded-3xl">
+              <Lock className="w-12 h-12 text-brand-text-muted mx-auto mb-4" />
+              <h3 className="text-xl font-bold mb-2">No projects accessible</h3>
+              <p className="text-brand-text-muted max-w-md mx-auto">
+                No active project instances found in your secure environment. Verify your SQL migrations and project memberships (RLS).
+              </p>
+            </div>
+          )}
           {filteredProjects.map((project) => (
             <motion.div 
               key={project.id}
@@ -594,7 +612,11 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   );
 };
 
-const ConsistencyMap = () => {
+const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
+  const { requirements: dataToUse, loading } = useRequirements(projectId);
+
+  if (loading) return <div className="p-12 text-center">Loading requirements...</div>;
+
   return (
     <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
       <div className="xl:col-span-2 space-y-6">
@@ -625,7 +647,7 @@ const ConsistencyMap = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-border">
-                {requirements.map((req) => (
+                {dataToUse.map((req: any) => (
                   <tr key={req.id} className="hover:bg-brand-border/20 transition-colors">
                     <td className="px-4 py-4">
                       <p className="font-bold">{req.id}</p>
@@ -782,21 +804,11 @@ const ConsistencyMap = () => {
 
 
 
-const ProjectDataset = () => {
+const ProjectDataset = ({ projectId }: { projectId?: string }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const dataset = [
-    { name: 'Technical_Specification_v2.pdf', type: 'PDF', size: '4.2 MB', date: '2026-03-15', status: 'Analyzed', category: 'Documentation' },
-    { name: 'Napoli_Station_Layout.dwg', type: 'CAD', size: '15.8 MB', date: '2026-03-20', status: 'Synced', category: 'Engineering' },
-    { name: 'Safety_Requirements_Matrix.xlsx', type: 'XLSX', size: '1.1 MB', date: '2026-03-22', status: 'Needs Review', category: 'Compliance' },
-    { name: 'Telemetry_Log_March_24.csv', type: 'CSV', size: '850 KB', date: '2026-03-24', status: 'Analyzed', category: 'Logs' },
-    { name: 'Interface_Control_Document.pdf', type: 'PDF', size: '2.4 MB', date: '2026-03-10', status: 'Synced', category: 'Documentation' },
-    { name: 'Hardware_BOM_v4.pdf', type: 'PDF', size: '1.2 MB', date: '2026-03-25', status: 'Synced', category: 'Engineering' },
-    { name: 'Station_Nodes_Photo_01.jpg', type: 'IMAGE', size: '3.5 MB', date: '2026-03-21', status: 'Uploaded', category: 'Field Evidence' },
-    { name: 'Email_ Elena_Zhao_Threshold.eml', type: 'EMAIL', size: '45 KB', date: '2026-03-12', status: 'Flagged', category: 'Communication' },
-    { name: 'Legacy_DB_Snapshot.sql', type: 'SQL', size: '12.4 MB', date: '2026-03-14', status: 'Indexed', category: 'Database' },
-    { name: 'Project_Timeline_Q1.pdf', type: 'PDF', size: '0.5 MB', date: '2026-03-01', status: 'Outdated', category: 'Management' },
-  ];
+  const { files: dataset, loading } = useFiles(projectId);
+
+  if (loading) return <div className="p-12 text-center">Loading dataset...</div>;
 
   const filteredData = dataset.filter(file => 
     file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1313,40 +1325,50 @@ const VDDLibrary = () => {
   );
 };
 
+import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { supabase } from './lib/supabase';
+
 // --- Main App ---
 
-export default function App() {
+const ProjectLayout = () => {
   const [activeTab, setActiveTab] = useState('consistency');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+  
+  const { project, loading } = useProject(projectId);
+
+  if (loading) return (
+    <div className="h-screen bg-brand-bg flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-accent"></div>
+    </div>
+  );
+
+  if (!project) return (
+    <div className="h-screen bg-brand-bg flex flex-col items-center justify-center space-y-4">
+      <p className="text-xl font-bold">Project not found or access denied.</p>
+      <button onClick={() => navigate('/')} className="px-4 py-2 bg-brand-accent rounded-lg text-white">Back Home</button>
+    </div>
+  );
 
   const getTitle = () => {
-    if (!selectedProject) return 'Home';
     switch (activeTab) {
-      case 'consistency': return `Consistency Map - ${selectedProject.name}`;
-      case 'dataset': return `Project Dataset - ${selectedProject.name}`;
-      case 'chat': return `Insight Chat - ${selectedProject.name}`;
-      case 'vdd': return `VDD Library - ${selectedProject.name}`;
-      default: return selectedProject.name;
+      case 'consistency': return `Consistency Map - ${project.name}`;
+      case 'dataset': return `Project Dataset - ${project.name}`;
+      case 'chat': return `Insight Chat - ${project.name}`;
+      case 'vdd': return `VDD Library - ${project.name}`;
+      default: return project.name;
     }
   };
-
-  if (!selectedProject) {
-    return <Home onSelectProject={(p) => {
-      setSelectedProject(p);
-      setActiveTab('consistency');
-    }} />;
-  }
 
   return (
     <div className="flex h-screen bg-brand-bg text-white overflow-hidden">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        onBackHome={() => setSelectedProject(null)} 
+        onBackHome={() => navigate('/')} 
       />
       
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Background gradient for project view */}
         <div className="absolute inset-0 bg-gradient-to-br from-brand-accent/5 via-transparent to-transparent pointer-events-none" />
         
         <Header title={getTitle()} />
@@ -1354,15 +1376,15 @@ export default function App() {
         <div className="flex-1 overflow-y-auto z-10">
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${selectedProject.id}-${activeTab}`}
+              key={`${project.id}-${activeTab}`}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
               className="h-full"
             >
-              {activeTab === 'consistency' && <ConsistencyMap />}
-              {activeTab === 'dataset' && <ProjectDataset />}
+              {activeTab === 'consistency' && <ConsistencyMap projectId={projectId} />}
+              {activeTab === 'dataset' && <ProjectDataset projectId={projectId} />}
               {activeTab === 'chat' && <InsightChat />}
               {activeTab === 'vdd' && <VDDLibrary />}
             </motion.div>
@@ -1372,7 +1394,7 @@ export default function App() {
         <footer className="h-10 border-t border-brand-border bg-brand-card flex items-center justify-between px-6 text-[10px] font-bold text-brand-text-muted z-10">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 uppercase tracking-widest text-brand-accent">
-               PROJECT INSTANCE: {selectedProject.id}
+               PROJECT INSTANCE: {project.id}
             </span>
             <span className="flex items-center gap-1 uppercase tracking-widest">
               <ShieldCheck className="w-3 h-3" /> Hitachi Secure Environment
@@ -1387,5 +1409,45 @@ export default function App() {
         </footer>
       </main>
     </div>
+  );
+};
+
+export default function App() {
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-screen bg-brand-bg flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-brand-accent/30 border-t-brand-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthView />;
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Home onSelectProject={(p) => navigate(`/project/${p.id}`)} />} />
+      <Route path="/project/:projectId" element={<ProjectLayout />} />
+    </Routes>
   );
 }
