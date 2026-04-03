@@ -4,20 +4,20 @@ import { AuthView } from './components/AuthView';
 import { toPng } from 'html-to-image';
 // @ts-ignore
 import jsPDF from 'jspdf';
-import { 
-  LayoutDashboard, 
-  Map, 
-  ShieldCheck, 
-  MessageSquare, 
-  Bell, 
-  Settings, 
-  Search, 
-  ChevronRight, 
-  AlertTriangle, 
-  CheckCircle2, 
-  XCircle, 
-  Database, 
-  Cloud, 
+import {
+  LayoutDashboard,
+  Map,
+  ShieldCheck,
+  MessageSquare,
+  Bell,
+  Settings,
+  Search,
+  ChevronRight,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Database,
+  Cloud,
   Train,
   FileText,
   History,
@@ -32,19 +32,20 @@ import {
   Image,
   Table as TableIcon,
   LogOut,
-  Lock
+  Lock,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { projects as mockProjects, requirements as mockRequirements, stations, Project, Requirement, Station } from './mockData';
-import { useProjects, useProject, useRequirements, useFiles } from './hooks/useSupabase';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import { useProjects, useProject, useRequirements, useFiles, triggerDatabaseScan } from './hooks/useSupabase';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -64,7 +65,7 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
   return (
     <aside className="w-16 md:w-64 bg-brand-card border-r border-brand-border flex flex-col h-screen sticky top-0 z-20">
       <div className="p-4 flex items-center justify-between border-b border-brand-border mb-2">
-        <button 
+        <button
           onClick={onBackHome}
           className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity text-left outline-none"
           title="Return to Home Dashboard"
@@ -78,7 +79,7 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
           </div>
         </button>
       </div>
-      
+
       <nav className="flex-1 px-2 py-4 space-y-2">
         {navItems.map((item) => (
           <button
@@ -86,8 +87,8 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
             onClick={() => setActiveTab(item.id)}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-              activeTab === item.id 
-                ? "bg-brand-accent/10 text-brand-accent" 
+              activeTab === item.id
+                ? "bg-brand-accent/10 text-brand-accent"
                 : "text-brand-text-muted hover:bg-brand-border/50 hover:text-white"
             )}
           >
@@ -122,9 +123,9 @@ const Header = ({ title }: { title: string }) => (
     <div className="flex items-center gap-4">
       <div className="relative hidden sm:block">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
-        <input 
-          type="text" 
-          placeholder="Search Traceability..." 
+        <input
+          type="text"
+          placeholder="Search Traceability..."
           className="bg-brand-card border border-brand-border rounded-lg pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:border-brand-accent w-64"
         />
       </div>
@@ -144,6 +145,48 @@ const Header = ({ title }: { title: string }) => (
 
 // --- Views ---
 
+const ScanButton = ({ isCompact = false }: { isCompact?: boolean }) => {
+  const [isScanning, setIsScanning] = useState(false);
+  const [lastScan, setLastScan] = useState(() => {
+    const now = new Date();
+    return now.toISOString().split('T')[0] + ' ' + now.toTimeString().split(' ')[0] + ' UTC';
+  });
+
+  const handleScan = () => {
+    setIsScanning(true);
+    triggerDatabaseScan();
+    setTimeout(() => {
+      setIsScanning(false);
+      const now = new Date();
+      setLastScan(now.toISOString().split('T')[0] + ' ' + now.toTimeString().split(' ')[0] + ' UTC');
+    }, 1500);
+  };
+
+  if (isCompact) {
+    return (
+      <button 
+        onClick={handleScan} 
+        disabled={isScanning} 
+        className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50 cursor-pointer disabled:opacity-50 outline-none"
+        title="Sync Database"
+      >
+        <RefreshCw className={cn("w-5 h-5", isScanning && "animate-spin text-brand-accent")} />
+      </button>
+    );
+  }
+
+  return (
+    <button 
+      onClick={handleScan}
+      disabled={isScanning}
+      className="flex items-center gap-2 text-brand-text-muted hover:text-white transition-colors cursor-pointer disabled:opacity-50 outline-none uppercase tracking-widest pl-2"
+    >
+      <RefreshCw className={cn("w-3 h-3", isScanning && "animate-spin text-brand-accent")} />
+      <span>{isScanning ? "SCANNING DB..." : `LAST SCAN: ${lastScan}`}</span>
+    </button>
+  );
+};
+
 const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -153,20 +196,20 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   // Supabase Data
   const { projects: dbProjects, loading } = useProjects();
   const [localProjects, setLocalProjects] = useState<Project[]>([]);
-  
+
   React.useEffect(() => {
     if (dbProjects) {
       setLocalProjects(dbProjects);
     }
   }, [dbProjects]);
-  const [notifications, setNotifications] = useState<{id: string, userName: string, projectName: string, projectId: string}[]>([
+  const [notifications, setNotifications] = useState<{ id: string, userName: string, projectName: string, projectId: string }[]>([
     { id: 'notif-preset', userName: 'Marco Rossi', projectName: 'ETCS Signal Control', projectId: 'HR-015' }
   ]);
   const [accessRequestModal, setAccessRequestModal] = useState<Project | null>(null);
   const [manageAccessModal, setManageAccessModal] = useState<Project | null>(null);
 
-  const filteredProjects = localProjects.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredProjects = localProjects.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -196,8 +239,8 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   const removeUser = (projectId: string, userId: string) => {
     setLocalProjects(localProjects.map(p => {
       if (p.id === projectId) {
-        return { 
-          ...p, 
+        return {
+          ...p,
           team: p.team.filter(m => m.id !== userId),
           hasAccess: userId === 'u1' ? false : p.hasAccess
         };
@@ -206,11 +249,11 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
     }));
     setManageAccessModal(prev => {
       if (prev && prev.id === projectId) {
-         return { 
-           ...prev, 
-           team: prev.team.filter(m => m.id !== userId),
-           hasAccess: userId === 'u1' ? false : prev.hasAccess
-         };
+        return {
+          ...prev,
+          team: prev.team.filter(m => m.id !== userId),
+          hasAccess: userId === 'u1' ? false : prev.hasAccess
+        };
       }
       return prev;
     });
@@ -242,18 +285,18 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
         <div className="flex items-center gap-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Projects, Requirements, Evidence..." 
+              placeholder="Search Projects, Requirements, Evidence..."
               className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-brand-accent w-80 transition-all focus:w-96"
             />
           </div>
-          
+
           <div className="flex gap-2">
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50 relative cursor-pointer"
               >
@@ -264,7 +307,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
               </button>
               <AnimatePresence>
                 {isNotificationsOpen && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
@@ -282,7 +325,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                             <p className="text-xs text-slate-300">
                               <span className="font-bold text-white">{notif.userName}</span> requested access to <span className="font-bold text-brand-accent">{notif.projectName}</span>
                             </p>
-                            <button 
+                            <button
                               onClick={() => approveAccess(notif.id, notif.projectId, notif.userName)}
                               className="self-end px-3 py-1 bg-brand-success/20 text-brand-success border border-brand-success/30 rounded text-xs font-bold hover:bg-brand-success hover:text-white transition-colors cursor-pointer"
                             >
@@ -297,47 +340,49 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
               </AnimatePresence>
             </div>
 
-          <div className="relative">
-            <button 
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50 cursor-pointer"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-            <AnimatePresence>
-              {isSettingsOpen && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 mt-2 w-48 bg-brand-card border border-brand-border/50 rounded-xl shadow-xl overflow-hidden z-50"
-                >
-                  <div className="p-2 flex flex-col">
-                    <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Profile Settings</button>
-                    <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Workspace Prefs</button>
-                    <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Security</button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <ScanButton isCompact />
+
+            <div className="relative">
+              <button
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50 cursor-pointer"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              <AnimatePresence>
+                {isSettingsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 mt-2 w-48 bg-brand-card border border-brand-border/50 rounded-xl shadow-xl overflow-hidden z-50"
+                  >
+                    <div className="p-2 flex flex-col">
+                      <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Profile Settings</button>
+                      <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Workspace Prefs</button>
+                      <button className="px-4 py-2 text-sm text-left hover:bg-brand-accent/10 rounded-lg transition-colors text-brand-text-muted hover:text-white cursor-pointer">Security</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
 
           <div className="relative flex items-center gap-3 pl-4 border-l border-brand-border/50">
-             <div className="text-right">
-                <p className="text-xs font-bold">H. Evidence</p>
-                <p className="text-[10px] text-brand-text-muted uppercase">Admin</p>
-             </div>
-             <button
-               onClick={() => setIsProfileOpen(!isProfileOpen)} 
-               className="w-10 h-10 rounded-full bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center hover:bg-brand-accent/20 transition-all cursor-pointer"
-             >
-                <User className="w-5 h-5 text-brand-accent" />
-             </button>
+            <div className="text-right">
+              <p className="text-xs font-bold">H. Evidence</p>
+              <p className="text-[10px] text-brand-text-muted uppercase">Admin</p>
+            </div>
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="w-10 h-10 rounded-full bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center hover:bg-brand-accent/20 transition-all cursor-pointer"
+            >
+              <User className="w-5 h-5 text-brand-accent" />
+            </button>
 
             <AnimatePresence>
               {isProfileOpen && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
@@ -348,9 +393,9 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                     <p className="text-[10px] text-brand-text-muted uppercase">Global Operations</p>
                   </div>
                   <div className="p-2 flex flex-col">
-                    <button 
-                       onClick={() => supabase.auth.signOut()}
-                       className="px-4 py-2 text-sm text-left hover:bg-brand-error/10 text-brand-error rounded-lg flex items-center gap-2 transition-colors font-semibold cursor-pointer w-full"
+                    <button
+                      onClick={() => supabase.auth.signOut()}
+                      className="px-4 py-2 text-sm text-left hover:bg-brand-error/10 text-brand-error rounded-lg flex items-center gap-2 transition-colors font-semibold cursor-pointer w-full"
                     >
                       <LogOut className="w-4 h-4" /> Logout
                     </button>
@@ -386,15 +431,15 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
             </div>
           )}
           {filteredProjects.map((project) => (
-            <motion.div 
+            <motion.div
               key={project.id}
               whileHover={{ scale: project.hasAccess ? 1.02 : 1.01, y: project.hasAccess ? -5 : -2 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleProjectClick(project)}
               className={cn(
                 "bg-brand-card/40 border rounded-3xl p-8 space-y-6 cursor-pointer transition-all",
-                project.hasAccess 
-                  ? "border-brand-border/50 hover:border-brand-accent/50 hover:shadow-2xl hover:shadow-brand-accent/5" 
+                project.hasAccess
+                  ? "border-brand-border/50 hover:border-brand-accent/50 hover:shadow-2xl hover:shadow-brand-accent/5"
                   : "border-brand-border/30 opacity-60 hover:opacity-100 hover:border-brand-border/80"
               )}
             >
@@ -409,8 +454,8 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                 <span className={cn(
                   "text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border",
                   project.status === 'BLOCKED' ? "bg-brand-error/10 text-brand-error border-brand-error/20" :
-                  project.status === 'AT RISK' ? "bg-brand-warning/10 text-brand-warning border-brand-warning/20" :
-                  "bg-brand-success/10 text-brand-success border-brand-success/20"
+                    project.status === 'AT RISK' ? "bg-brand-warning/10 text-brand-warning border-brand-warning/20" :
+                      "bg-brand-success/10 text-brand-success border-brand-success/20"
                 )}>
                   {project.status}
                 </span>
@@ -426,8 +471,8 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                     <div className={cn(
                       "w-2.5 h-2.5 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)]",
                       metric.status === 'critical' ? "bg-brand-error shadow-brand-error/50" :
-                      metric.status === 'warning' ? "bg-brand-warning shadow-brand-warning/50" :
-                      "bg-brand-success shadow-brand-success/50"
+                        metric.status === 'warning' ? "bg-brand-warning shadow-brand-warning/50" :
+                          "bg-brand-success shadow-brand-success/50"
                     )}></div>
                     <span className="text-[10px] font-black text-brand-text-muted tracking-widest">{metric.label}</span>
                   </div>
@@ -441,15 +486,15 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                 </div>
                 {project.hasAccess ? (
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); setManageAccessModal(project); }}
                       className="flex items-center gap-2 text-brand-text-muted hover:text-white font-bold text-xs uppercase tracking-widest bg-brand-bg/50 border border-brand-border/50 hover:border-brand-text-muted px-2 py-1 rounded transition-colors"
                     >
                       <ShieldCheck className="w-3 h-3" /> Manage Access
                     </button>
-                    <button 
-                       onClick={(e) => { e.stopPropagation(); handleProjectClick(project); }}
-                       className="flex items-center gap-2 text-brand-accent font-bold text-xs uppercase tracking-widest bg-brand-accent/5 px-2 py-1 rounded hover:bg-brand-accent/10 transition-colors"
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleProjectClick(project); }}
+                      className="flex items-center gap-2 text-brand-accent font-bold text-xs uppercase tracking-widest bg-brand-accent/5 px-2 py-1 rounded hover:bg-brand-accent/10 transition-colors"
                     >
                       Initialize <ChevronRight className="w-3 h-3" />
                     </button>
@@ -465,43 +510,43 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-12">
-           <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-8 space-y-6 lg:col-span-2">
-              <h3 className="text-xl font-bold flex items-center gap-3">
-                 <ShieldCheck className="w-6 h-6 text-brand-accent" />
-                 Global Fleet Intelligence Hub
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <div className="bg-brand-card/40 p-6 rounded-2xl border border-brand-border/50">
-                    <p className="text-[10px] font-black text-brand-error uppercase tracking-widest mb-1">Active Conflict</p>
-                    <h4 className="font-bold">SSMS Consistency Drift</h4>
-                    <p className="text-xs text-brand-text-muted mt-2">Discrepancy in Napoli Station (Project: SSMS) requires immediate review.</p>
-                 </div>
-                 <div className="bg-brand-card/40 p-6 rounded-2xl border border-brand-border/50">
-                    <p className="text-[10px] font-black text-brand-success uppercase tracking-widest mb-1">Compliance Health</p>
-                    <h4 className="font-bold">99.4% Global Accuracy</h4>
-                    <p className="text-xs text-brand-text-muted mt-2">AI-confidence remains high across all active mission-critical instances.</p>
-                 </div>
+          <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-8 space-y-6 lg:col-span-2">
+            <h3 className="text-xl font-bold flex items-center gap-3">
+              <ShieldCheck className="w-6 h-6 text-brand-accent" />
+              Global Fleet Intelligence Hub
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-brand-card/40 p-6 rounded-2xl border border-brand-border/50">
+                <p className="text-[10px] font-black text-brand-error uppercase tracking-widest mb-1">Active Conflict</p>
+                <h4 className="font-bold">SSMS Consistency Drift</h4>
+                <p className="text-xs text-brand-text-muted mt-2">Discrepancy in Napoli Station (Project: SSMS) requires immediate review.</p>
               </div>
-           </div>
-           <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-8 flex flex-col justify-center items-center text-center space-y-4">
-              <div className="w-16 h-16 bg-brand-accent/10 rounded-full flex items-center justify-center border border-brand-accent/20">
-                 <LayoutDashboard className="w-8 h-8 text-brand-accent" />
+              <div className="bg-brand-card/40 p-6 rounded-2xl border border-brand-border/50">
+                <p className="text-[10px] font-black text-brand-success uppercase tracking-widest mb-1">Compliance Health</p>
+                <h4 className="font-bold">99.4% Global Accuracy</h4>
+                <p className="text-xs text-brand-text-muted mt-2">AI-confidence remains high across all active mission-critical instances.</p>
               </div>
-              <h3 className="font-bold">System Status</h3>
-              <div className="space-y-1">
-                 <p className="text-3xl font-black text-brand-success">ONLINE</p>
-                 <p className="text-[10px] font-bold text-brand-text-muted uppercase">All Engines Active</p>
-              </div>
-           </div>
+            </div>
+          </div>
+          <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-8 flex flex-col justify-center items-center text-center space-y-4">
+            <div className="w-16 h-16 bg-brand-accent/10 rounded-full flex items-center justify-center border border-brand-accent/20">
+              <LayoutDashboard className="w-8 h-8 text-brand-accent" />
+            </div>
+            <h3 className="font-bold">System Status</h3>
+            <div className="space-y-1">
+              <p className="text-3xl font-black text-brand-success">ONLINE</p>
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase">All Engines Active</p>
+            </div>
+          </div>
         </div>
       </main>
 
       <footer className="h-16 border-t border-brand-border/30 bg-brand-card/20 flex items-center justify-between px-12 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">
         <span>© 2026 Hitachi Rail STS — Industrial Intelligence</span>
         <div className="flex gap-8">
-           <span>Privacy Protocol</span>
-           <span>Forensic Guidelines</span>
-           <span className="text-brand-accent">System v4.2.0</span>
+          <span>Privacy Protocol</span>
+          <span>Forensic Guidelines</span>
+          <span className="text-brand-accent">System v4.2.0</span>
         </div>
       </footer>
 
@@ -509,19 +554,19 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
       <AnimatePresence>
         {accessRequestModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-md w-full shadow-2xl relative"
             >
-              <button 
+              <button
                 onClick={() => setAccessRequestModal(null)}
                 className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer transition-colors"
               >
                 <XCircle className="w-5 h-5" />
               </button>
-              
+
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-12 h-12 bg-brand-warning/10 border border-brand-warning/20 rounded-xl flex items-center justify-center">
                   <Lock className="w-6 h-6 text-brand-warning" />
@@ -531,19 +576,19 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                   <p className="text-xs text-brand-text-muted uppercase tracking-widest">ID: {accessRequestModal.id}</p>
                 </div>
               </div>
-              
+
               <p className="text-sm text-slate-300 mb-6">
                 You do not currently have clearance to access <span className="font-bold text-white">{accessRequestModal.name}</span>. This workspace may contain sensitive telemetry or forensic data.
               </p>
-              
+
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setAccessRequestModal(null)}
                   className="flex-1 py-2 rounded-lg font-bold border border-brand-border/50 text-brand-text-muted hover:text-white transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={() => requestAccess(accessRequestModal)}
                   className="flex-1 py-2 rounded-lg font-bold bg-brand-accent text-white hover:bg-brand-accent/90 transition-colors shadow-lg shadow-brand-accent/20 cursor-pointer"
                 >
@@ -559,19 +604,19 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
       <AnimatePresence>
         {manageAccessModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative"
             >
-              <button 
+              <button
                 onClick={() => setManageAccessModal(null)}
                 className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer"
               >
                 <XCircle className="w-5 h-5" />
               </button>
-              
+
               <div className="mb-6">
                 <h3 className="text-xl font-bold flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-brand-accent" /> Manage Project Access
@@ -581,27 +626,27 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
 
               <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
                 {manageAccessModal.team.map(member => (
-                   <div key={member.id} className="flex justify-between items-center p-3 bg-brand-bg/40 border border-brand-border/50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-full bg-brand-accent/20 flex items-center justify-center text-brand-accent font-bold text-[10px]">
-                           {member.name.substring(0,2).toUpperCase()}
-                         </div>
-                         <div>
-                           <p className="text-sm font-bold text-white">{member.name}</p>
-                           <p className="text-[10px] text-brand-text-muted">{member.email}</p>
-                         </div>
+                  <div key={member.id} className="flex justify-between items-center p-3 bg-brand-bg/40 border border-brand-border/50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-brand-accent/20 flex items-center justify-center text-brand-accent font-bold text-[10px]">
+                        {member.name.substring(0, 2).toUpperCase()}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-brand-text-muted uppercase px-2 py-1 bg-brand-bg rounded border border-brand-border">{member.role}</span>
-                        <button 
-                          onClick={() => removeUser(manageAccessModal.id, member.id)}
-                          className="text-brand-error hover:text-white hover:bg-brand-error/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                          title="Revoke Access"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
+                      <div>
+                        <p className="text-sm font-bold text-white">{member.name}</p>
+                        <p className="text-[10px] text-brand-text-muted">{member.email}</p>
                       </div>
-                   </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-bold text-brand-text-muted uppercase px-2 py-1 bg-brand-bg rounded border border-brand-border">{member.role}</span>
+                      <button
+                        onClick={() => removeUser(manageAccessModal.id, member.id)}
+                        className="text-brand-error hover:text-white hover:bg-brand-error/20 p-1.5 rounded-lg transition-colors cursor-pointer"
+                        title="Revoke Access"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </motion.div>
@@ -613,7 +658,9 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
 };
 
 const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
-  const { requirements: dataToUse, loading } = useRequirements(projectId);
+  const { requirements: dataToUse, loading, updateOutcome } = useRequirements(projectId);
+  const [selectedReq, setSelectedReq] = useState<any>(null);
+  const [selectedTest, setSelectedTest] = useState<any>(null);
 
   if (loading) return <div className="p-12 text-center">Loading requirements...</div>;
 
@@ -642,27 +689,37 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
                   <th className="px-4 py-3">Requirement ID & Description</th>
                   <th className="px-4 py-3">Linked Test</th>
                   <th className="px-4 py-3">Outcome</th>
-                  <th className="px-4 py-3">Target VDD</th>
                   <th className="px-4 py-3">Compliance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-border">
                 {dataToUse.map((req: any) => (
                   <tr key={req.id} className="hover:bg-brand-border/20 transition-colors">
-                    <td className="px-4 py-4">
-                      <p className="font-bold">{req.id}</p>
-                      <p className="text-xs text-brand-text-muted">{req.description}</p>
+                    <td className="px-4 py-4 cursor-pointer hover:bg-brand-accent/5 transition-colors group" onClick={() => setSelectedReq(req)}>
+                      <p className="font-bold group-hover:text-brand-accent group-hover:underline transition-all cursor-pointer inline-block">{req.id}</p>
+                      <p className="text-xs text-brand-text-muted mt-1">{req.description}</p>
                     </td>
-                    <td className="px-4 py-4 text-brand-accent font-mono">{req.linkedTest}</td>
-                    <td className="px-4 py-4">
-                      <span className={cn(
-                        "px-2 py-0.5 rounded-full text-[10px] font-bold",
-                        req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" : "bg-brand-error/20 text-brand-error"
-                      )}>
-                        ● {req.outcome}
-                      </span>
+                    <td className="px-4 py-4 text-brand-accent font-mono cursor-pointer hover:underline" onClick={() => req.linkedTest !== 'N/A' && setSelectedTest(req)} title={`Visualizza codice sorgente test ${req.linkedTest}`}>
+                      {req.linkedTest}
                     </td>
-                    <td className="px-4 py-4 text-xs text-brand-text-muted">{req.targetVdd}</td>
+                    <td className="px-4 py-4">
+                      <select
+                        value={req.outcome}
+                        onChange={(e) => updateOutcome(req.id, req.linkedTest, e.target.value)}
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold outline-none cursor-pointer text-center appearance-none border border-transparent hover:border-current transition-colors",
+                          req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" : 
+                          req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" :
+                          "bg-brand-warning/20 text-brand-warning"
+                        )}
+                        title="Forza esito manualmente"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <option value="PASS" className="bg-brand-card text-brand-success">● PASS</option>
+                        <option value="FAIL" className="bg-brand-card text-brand-error">● FAIL</option>
+                        <option value="PENDING" className="bg-brand-card text-brand-warning">● PENDING</option>
+                      </select>
+                    </td>
                     <td className="px-4 py-4">
                       {req.compliance ? (
                         <CheckCircle2 className="w-5 h-5 text-brand-success" />
@@ -726,7 +783,7 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
                 <span className="text-[10px] text-brand-text-muted font-mono">14:22:05 UTC</span>
               </div>
               <h4 className="font-bold text-sm">Conflicting evidence found in unstructured data sources</h4>
-              
+
               <div className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-brand-success flex items-center gap-1">
@@ -798,6 +855,106 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {selectedReq && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative"
+            >
+              <button 
+                onClick={() => setSelectedReq(null)}
+                className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+              <h3 className="text-xl font-bold mb-2">Dettagli Requisito</h3>
+              <p className="text-sm font-bold text-brand-accent mb-4">{selectedReq.id}: {selectedReq.description}</p>
+              
+              <div className="bg-brand-bg/50 border border-brand-border/50 p-4 rounded-xl">
+                <h4 className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest mb-2">Descrizione Completa</h4>
+                <p className="text-sm text-slate-300">
+                  {selectedReq.fullDescription}
+                </p>
+              </div>
+
+              <div className="mt-4 flex justify-between items-center bg-brand-bg/30 p-3 rounded-lg border border-brand-border/30">
+                <div>
+                  <p className="text-[10px] font-bold text-brand-text-muted uppercase">Linked Test</p>
+                  <p className="font-mono text-white">{selectedReq.linkedTest}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] font-bold text-brand-text-muted uppercase mb-1">Outcome</p>
+                  <span className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                    selectedReq.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" : "bg-brand-error/20 text-brand-error"
+                  )}>
+                    ● {selectedReq.outcome}
+                  </span>
+                </div>
+                <div className="text-right">
+                   <p className="text-[10px] font-bold text-brand-text-muted uppercase">Target VDD</p>
+                   <p className="text-sm text-brand-text-muted">{selectedReq.targetVdd}</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {selectedTest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 xl:p-12 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-[#0D1117] border border-brand-border/50 rounded-2xl max-w-5xl w-full h-[85vh] flex flex-col shadow-2xl relative overflow-hidden"
+            >
+              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-[#161B22]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                    <FileText className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-200">Integration Validation: {selectedTest.linkedTest}</h3>
+                    <p className="text-[10px] font-mono text-slate-400">tests/integration/{selectedTest.linkedTest.toLowerCase()}_spec.ts</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedTest(null)}
+                  className="text-slate-400 hover:text-white cursor-pointer transition-colors p-2 rounded-lg hover:bg-white/5"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6 bg-[#0D1117] text-slate-300">
+                <pre className="font-mono text-xs md:text-sm whitespace-pre-wrap leading-loose">
+                  <code>{selectedTest.testCode}</code>
+                </pre>
+              </div>
+
+              <div className="p-3 border-t border-white/10 bg-[#161B22] flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-2">
+                    {selectedTest.outcome === 'PASS' 
+                      ? <><CheckCircle2 className="w-3 h-3 text-green-400" /> Pipeline: SUCCESS</>
+                      : <><AlertTriangle className="w-3 h-3 text-red-400" /> Pipeline: FAILED</>
+                    }
+                  </span>
+                  <span>Execution Time: ~45ms</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span>Env: SSMS-PROD-01</span>
+                  <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">Typescript</span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -810,7 +967,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
 
   if (loading) return <div className="p-12 text-center">Loading dataset...</div>;
 
-  const filteredData = dataset.filter(file => 
+  const filteredData = dataset.filter(file =>
     file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     file.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -818,10 +975,10 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
   const getFileIcon = (type: string) => {
     switch (type) {
       case 'PDF': return <FileText className="w-5 h-5 text-brand-error" />;
-      case 'XLSX': 
+      case 'XLSX':
       case 'CSV': return <TableIcon className="w-5 h-5 text-brand-success" />;
       case 'IMAGE': return <Image className="w-5 h-5 text-brand-accent" />;
-      case 'CAD': 
+      case 'CAD':
       case 'SQL': return <Database className="w-5 h-5 text-brand-warning" />;
       default: return <FileArchive className="w-5 h-5 text-brand-text-muted" />;
     }
@@ -837,13 +994,13 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
             Centralized access to all formal documentation, telemetry logs, engineering diagrams, and field evidence indexed for this project instance.
           </p>
         </div>
-        
+
         <div className="flex gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
-            <input 
-              type="text" 
-              placeholder="Filter by name or category..." 
+            <input
+              type="text"
+              placeholder="Filter by name or category..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-accent w-64 md:w-80 transition-all focus:md:w-96"
@@ -889,9 +1046,9 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
                     <span className={cn(
                       "text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest border",
                       file.status === 'Analyzed' || file.status === 'Synced' ? "bg-brand-success/10 text-brand-success border-brand-success/30" :
-                      file.status === 'Flagged' || file.status === 'Needs Review' ? "bg-brand-error/10 text-brand-error border-brand-error/30" :
-                      file.status === 'Outdated' ? "bg-brand-warning/10 text-brand-warning border-brand-warning/30" :
-                      "bg-brand-bg/50 text-brand-text-muted border-brand-border/50"
+                        file.status === 'Flagged' || file.status === 'Needs Review' ? "bg-brand-error/10 text-brand-error border-brand-error/30" :
+                          file.status === 'Outdated' ? "bg-brand-warning/10 text-brand-warning border-brand-warning/30" :
+                            "bg-brand-bg/50 text-brand-text-muted border-brand-border/50"
                     )}>
                       {file.status}
                     </span>
@@ -912,7 +1069,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
           </table>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-6 flex items-center gap-6">
           <div className="w-14 h-14 bg-brand-accent/10 rounded-2xl flex items-center justify-center border border-brand-accent/20 shrink-0">
@@ -978,8 +1135,8 @@ const InsightChat = () => {
               { type: 'email', name: 'Re: Napoli Threshold', desc: 'ELENA ZHAO (LEAD QA)' },
               { type: 'db', name: 'Legacy_Schema_v4.sql', desc: 'SQL EVIDENCE' }
             ].map((doc, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 onClick={() => {
                   if (doc.name.includes('VDD')) {
                     const btn = document.getElementById('vdd-download-btn');
@@ -992,9 +1149,9 @@ const InsightChat = () => {
               >
                 <div className="flex items-center gap-2">
                   {doc.type === 'pdf' ? <FileText className="w-4 h-4 text-brand-error" /> :
-                   doc.type === 'doc' ? <FileText className="w-4 h-4 text-brand-accent" /> :
-                   doc.type === 'email' ? <MessageSquare className="w-4 h-4 text-brand-warning" /> :
-                   <Database className="w-4 h-4 text-brand-success" />}
+                    doc.type === 'doc' ? <FileText className="w-4 h-4 text-brand-accent" /> :
+                      doc.type === 'email' ? <MessageSquare className="w-4 h-4 text-brand-warning" /> :
+                        <Database className="w-4 h-4 text-brand-success" />}
                   <span className="text-xs font-bold truncate flex-1">{doc.name}</span>
                   <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
                 </div>
@@ -1058,7 +1215,7 @@ const InsightChat = () => {
                   </div>
                 )}
                 <p className="text-sm leading-relaxed">{msg.content}</p>
-                
+
                 {msg.isAI && (
                   <div className="space-y-4 mt-4">
                     <div className="bg-brand-bg/50 border border-brand-border rounded-xl p-4 space-y-3">
@@ -1108,9 +1265,9 @@ const InsightChat = () => {
             <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               <MoreVertical className="w-4 h-4 text-brand-text-muted" />
             </div>
-            <input 
-              type="text" 
-              placeholder="Query SSMS project instance..." 
+            <input
+              type="text"
+              placeholder="Query SSMS project instance..."
               className="w-full bg-brand-card border border-brand-border rounded-xl pl-12 pr-24 py-4 focus:outline-none focus:border-brand-accent"
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
@@ -1146,7 +1303,7 @@ const VDDLibrary = () => {
     const originalContent = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="animate-spin mr-2">◌</span> Preparing Pages...';
-    
+
     try {
       const page1 = document.getElementById('vdd-page-1');
       const page2 = document.getElementById('vdd-page-2');
@@ -1169,9 +1326,9 @@ const VDDLibrary = () => {
       pdf.addImage(img1, 'PNG', 0, 0, 800, 1130);
       pdf.addPage();
       pdf.addImage(img2, 'PNG', 0, 0, 800, 1130);
-      
+
       pdf.save('VDD_v1.2.0.pdf');
-      
+
       btn.innerHTML = '<span class="mr-2">✓</span> Download Complete';
       setTimeout(() => {
         btn.innerHTML = originalContent;
@@ -1189,7 +1346,7 @@ const VDDLibrary = () => {
   return (
     <div className="p-6 flex flex-col items-center gap-6 overflow-y-auto h-full pb-24">
       <div className="w-[800px] flex justify-end shrink-0">
-        <button 
+        <button
           onClick={handleDownload}
           id="vdd-download-btn"
           className="flex items-center gap-2 px-4 py-2 bg-brand-accent text-white rounded-lg font-bold shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-all active:scale-95"
@@ -1334,7 +1491,7 @@ const ProjectLayout = () => {
   const [activeTab, setActiveTab] = useState('consistency');
   const { projectId } = useParams();
   const navigate = useNavigate();
-  
+
   const { project, loading } = useProject(projectId);
 
   if (loading) return (
@@ -1362,17 +1519,17 @@ const ProjectLayout = () => {
 
   return (
     <div className="flex h-screen bg-brand-bg text-white overflow-hidden">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        onBackHome={() => navigate('/')} 
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onBackHome={() => navigate('/')}
       />
-      
+
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-accent/5 via-transparent to-transparent pointer-events-none" />
-        
+
         <Header title={getTitle()} />
-        
+
         <div className="flex-1 overflow-y-auto z-10">
           <AnimatePresence mode="wait">
             <motion.div
@@ -1394,14 +1551,14 @@ const ProjectLayout = () => {
         <footer className="h-10 border-t border-brand-border bg-brand-card flex items-center justify-between px-6 text-[10px] font-bold text-brand-text-muted z-10">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 uppercase tracking-widest text-brand-accent">
-               PROJECT INSTANCE: {project.id}
+              PROJECT INSTANCE: {project.id}
             </span>
             <span className="flex items-center gap-1 uppercase tracking-widest">
               <ShieldCheck className="w-3 h-3" /> Hitachi Secure Environment
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span>LAST SCAN: 2026-03-30 08:15:47 UTC</span>
+            <ScanButton />
             <span className="flex items-center gap-1 text-brand-accent uppercase tracking-widest">
               <CheckCircle2 className="w-3 h-3" /> Compliance Engine 4.2.0
             </span>
