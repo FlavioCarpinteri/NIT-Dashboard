@@ -118,12 +118,12 @@ export function useRequirements(projectId: string | undefined) {
           outcome: req.tests?.[0]?.outcome || 'PENDING',
           targetVdd: req.target_vdd,
           compliance: req.tests?.[0]?.compliance || false,
-          fullDescription: req.full_description || `Specifiche di dettaglio per il requisito ${req.req_id}. Al momento la descrizione completa non è stata caricata nel database e questo è un testo segnaposto per la visualizzazione.`,
-          testCode: req.tests?.[0]?.code_snippet || req.tests?.[0]?.script || `// Codice sorgente per validation test ${req.tests?.[0]?.test_id || 'N/A'}
+          fullDescription: req.full_description || `Detailed specifications for requirement ${req.req_id}. At the moment the full description has not been loaded into the database and this is placeholder text for display.`,
+          testCode: req.tests?.[0]?.code_snippet || req.tests?.[0]?.script || `// Source code for validation test ${req.tests?.[0]?.test_id || 'N/A'}
 import { test, expect } from '@playwright/test';
 import { TelemetryMonitor } from '@hitachi/telemetry-core';
 
-test('Valida il requisito ${req.req_id}', async () => {
+test('Validate requirement ${req.req_id}', async () => {
   const monitor = new TelemetryMonitor({ 
     instance: 'SSMS-PROD-01',
     targetVdd: '${req.target_vdd || 'v1.2.0'}'
@@ -132,7 +132,7 @@ test('Valida il requisito ${req.req_id}', async () => {
   await monitor.connect();
   const latency = await monitor.pingGate('napoli_node_1');
   
-  // Verifica dei log di stabilità
+  // Verify stability logs
   expect(latency.ms).toBeLessThanOrEqual(100);
   expect(monitor.getStatus()).toBe('HEALTHY');
 });`

@@ -699,7 +699,7 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
                       <p className="font-bold group-hover:text-brand-accent group-hover:underline transition-all cursor-pointer inline-block">{req.id}</p>
                       <p className="text-xs text-brand-text-muted mt-1">{req.description}</p>
                     </td>
-                    <td className="px-4 py-4 text-brand-accent font-mono cursor-pointer hover:underline" onClick={() => req.linkedTest !== 'N/A' && setSelectedTest(req)} title={`Visualizza codice sorgente test ${req.linkedTest}`}>
+                    <td className="px-4 py-4 text-brand-accent font-mono cursor-pointer hover:underline" onClick={() => req.linkedTest !== 'N/A' && setSelectedTest(req)} title={`View source code for test ${req.linkedTest}`}>
                       {req.linkedTest}
                     </td>
                     <td className="px-4 py-4">
@@ -712,7 +712,7 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
                           req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" :
                           "bg-brand-warning/20 text-brand-warning"
                         )}
-                        title="Forza esito manualmente"
+                        title="Force outcome manually"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <option value="PASS" className="bg-brand-card text-brand-success">● PASS</option>
@@ -871,11 +871,11 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
               >
                 <XCircle className="w-5 h-5" />
               </button>
-              <h3 className="text-xl font-bold mb-2">Dettagli Requisito</h3>
+              <h3 className="text-xl font-bold mb-2">Requirement Details</h3>
               <p className="text-sm font-bold text-brand-accent mb-4">{selectedReq.id}: {selectedReq.description}</p>
               
               <div className="bg-brand-bg/50 border border-brand-border/50 p-4 rounded-xl">
-                <h4 className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest mb-2">Descrizione Completa</h4>
+                <h4 className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest mb-2">Full Description</h4>
                 <p className="text-sm text-slate-300">
                   {selectedReq.fullDescription}
                 </p>
