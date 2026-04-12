@@ -130,3 +130,19 @@ export const stations: Station[] = [
   { id: 'milano', name: 'Milano Centrale', status: 'Synced' },
   { id: 'roma', name: 'Roma Termini', status: 'Synced' },
 ];
+
+export interface FileData {
+  name: string;
+  type: string;
+  size: string;
+  date: string;
+  status: 'VERIFIED' | 'PENDING' | 'REJECTED';
+  category: string;
+}
+
+export const mockFiles: FileData[] = [
+  { name: 'SSMS_Architecture_v1.pdf', type: 'PDF', size: '2.4 MB', date: '2026-04-10', status: 'VERIFIED', category: 'Architecture' },
+  { name: 'Telemetry_Log_49281.csv', type: 'CSV', size: '15.1 MB', date: '2026-04-11', status: 'PENDING', category: 'Logs' },
+  { name: 'Validation_Report_Q1.docx', type: 'DOCX', size: '1.2 MB', date: '2026-04-05', status: 'VERIFIED', category: 'Reports' },
+  { name: 'Incompatible_Nodes.json', type: 'JSON', size: '0.5 MB', date: '2026-04-12', status: 'REJECTED', category: 'Data' }
+];

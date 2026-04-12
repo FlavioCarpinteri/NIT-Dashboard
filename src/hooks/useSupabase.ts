@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { mockFiles } from '../mockData';
 
 export const triggerDatabaseScan = () => window.dispatchEvent(new Event('database-scan'));
 
@@ -180,7 +181,7 @@ export function useFiles(projectId: string | undefined) {
         `)
         .eq('project_id', projectId);
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         const mapped = data.map(fp => (fp as any).files).map((file: any) => ({
           name: file.name,
           type: file.type,
@@ -190,6 +191,8 @@ export function useFiles(projectId: string | undefined) {
           category: file.category
         }));
         setFiles(mapped);
+      } else {
+        setFiles(mockFiles);
       }
       setLoading(false);
     }
