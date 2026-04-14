@@ -63,51 +63,51 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
   ];
 
   return (
-    <aside className="w-16 md:w-64 bg-brand-card border-r border-brand-border flex flex-col h-screen sticky top-0 z-20">
-      <div className="p-4 flex items-center justify-between border-b border-brand-border mb-2">
+    <aside className="fixed bottom-0 left-0 right-0 h-16 md:h-screen md:relative md:w-20 lg:w-64 bg-brand-card border-t md:border-t-0 md:border-r border-brand-border flex flex-row md:flex-col md:sticky md:top-0 z-50 md:z-20">
+      <div className="hidden md:flex p-4 items-center justify-between border-b border-brand-border mb-2">
         <button
           onClick={onBackHome}
           className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity text-left outline-none"
           title="Return to Home Dashboard"
         >
-          <div className="w-10 h-10 bg-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent/20 shrink-0">
-            <Train className="text-white w-6 h-6" />
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent/20 shrink-0">
+            <Train className="text-white w-5 h-5 md:w-6 md:h-6" />
           </div>
-          <div className="hidden md:block">
-            <h1 className="text-xl font-bold tracking-tight leading-tight">Hitachi Rail</h1>
+          <div className="hidden lg:block">
+            <h1 className="text-lg md:text-xl font-bold tracking-tight leading-tight">Hitachi Rail</h1>
             <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest leading-tight">Global Operations Command</p>
           </div>
         </button>
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-2">
+      <nav className="flex-1 flex flex-row md:flex-col md:px-2 md:py-4 md:space-y-2 space-x-2 md:space-x-0 overflow-x-auto overflow-y-hidden md:overflow-visible h-full md:h-auto items-center md:items-stretch px-2 snap-x hide-scrollbar">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+              "flex items-center gap-3 px-3 py-2 md:w-full rounded-lg transition-colors shrink-0 snap-center h-10 md:h-auto",
               activeTab === item.id
                 ? "bg-brand-accent/10 text-brand-accent"
                 : "text-brand-text-muted hover:bg-brand-border/50 hover:text-white"
             )}
           >
             <item.icon className="w-5 h-5" />
-            <span className="font-medium hidden md:block">{item.label}</span>
+            <span className="font-medium text-sm md:text-base hidden lg:block">{item.label}</span>
           </button>
         ))}
       </nav>
 
-      <div className="p-4 border-t border-brand-border space-y-4">
-        <button className="w-full flex items-center gap-3 px-3 py-2 text-brand-text-muted hover:text-white transition-colors">
+      <div className="hidden md:block p-4 border-t border-brand-border space-y-4">
+        <button className="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2 text-brand-text-muted hover:text-white transition-colors">
           <Settings className="w-5 h-5" />
-          <span className="font-medium hidden md:block">Settings</span>
+          <span className="font-medium hidden lg:block">Settings</span>
         </button>
-        <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center border border-brand-accent/20">
+        <div className="flex items-center justify-center lg:justify-start gap-3 px-3 py-2">
+          <div className="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center border border-brand-accent/20 shrink-0">
             <User className="w-4 h-4" />
           </div>
-          <div className="hidden md:block overflow-hidden">
+          <div className="hidden lg:block overflow-hidden">
             <p className="text-sm font-medium truncate">H. Evidence</p>
             <p className="text-xs text-brand-text-muted truncate">Retrieval Agent</p>
           </div>
@@ -117,16 +117,23 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
   );
 };
 
-const Header = ({ title }: { title: string }) => (
-  <header className="h-16 border-b border-brand-border bg-brand-bg/50 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-10">
-    <h1 className="text-xl font-semibold">{title}</h1>
-    <div className="flex items-center gap-4">
-      <div className="relative hidden sm:block">
+const Header = ({ title, onBackHome }: { title: string, onBackHome?: () => void }) => (
+  <header className="h-16 border-b border-brand-border bg-brand-bg/50 backdrop-blur-md flex items-center justify-between px-4 md:px-6 sticky top-0 z-10 shrink-0">
+    <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+      {onBackHome && (
+        <button onClick={onBackHome} className="md:hidden p-1.5 -ml-1 text-brand-text-muted hover:text-white rounded-lg hover:bg-brand-card shrink-0">
+          <ChevronRight className="w-5 h-5 rotate-180" />
+        </button>
+      )}
+      <h1 className="text-lg md:text-xl font-semibold truncate">{title}</h1>
+    </div>
+    <div className="flex items-center gap-2 md:gap-4 shrink-0">
+      <div className="relative hidden lg:block">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
         <input
           type="text"
           placeholder="Search Traceability..."
-          className="bg-brand-card border border-brand-border rounded-lg pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:border-brand-accent w-64"
+          className="bg-brand-card border border-brand-border rounded-lg pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:border-brand-accent w-48 md:w-64"
         />
       </div>
       <button className="p-2 text-brand-text-muted hover:text-white relative">
@@ -272,29 +279,29 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
 
   return (
     <div className="min-h-screen bg-brand-bg flex flex-col">
-      <header className="h-20 border-b border-brand-border/50 bg-brand-card/30 backdrop-blur-xl flex items-center justify-between px-12 sticky top-0 z-30">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent/20">
-            <Train className="text-white w-6 h-6" />
+      <header className="h-16 md:h-20 border-b border-brand-border/50 bg-brand-card/30 backdrop-blur-xl flex items-center justify-between px-4 md:px-12 sticky top-0 z-30">
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent/20 shrink-0">
+            <Train className="text-white w-5 h-5 md:w-6 md:h-6" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">Hitachi Rail</h1>
-            <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">Global Operations Command</p>
+          <div className="hidden sm:block">
+            <h1 className="text-lg md:text-xl font-bold tracking-tight">Hitachi Rail</h1>
+            <p className="text-[8px] md:text-[10px] font-bold text-brand-text-muted uppercase tracking-widest hidden md:block">Global Operations Command</p>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="relative">
+        <div className="flex items-center gap-2 md:gap-6">
+          <div className="relative hidden lg:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Projects, Requirements, Evidence..."
-              className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-brand-accent w-80 transition-all focus:w-96"
+              placeholder="Search Projects..."
+              className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-brand-accent w-48 lg:w-80 transition-all focus:w-64 focus:lg:w-96"
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-1 md:gap-2">
             <div className="relative">
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -368,16 +375,16 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
             </div>
           </div>
 
-          <div className="relative flex items-center gap-3 pl-4 border-l border-brand-border/50">
-            <div className="text-right">
+          <div className="relative flex items-center gap-2 md:gap-3 pl-2 md:pl-4 border-l border-brand-border/50">
+            <div className="text-right hidden sm:block">
               <p className="text-xs font-bold">H. Evidence</p>
               <p className="text-[10px] text-brand-text-muted uppercase">Admin</p>
             </div>
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="w-10 h-10 rounded-full bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center hover:bg-brand-accent/20 transition-all cursor-pointer"
+              className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center hover:bg-brand-accent/20 transition-all cursor-pointer shrink-0"
             >
-              <User className="w-5 h-5 text-brand-accent" />
+              <User className="w-4 h-4 md:w-5 md:h-5 text-brand-accent" />
             </button>
 
             <AnimatePresence>
@@ -407,15 +414,15 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
         </div>
       </header>
 
-      <main className="flex-1 p-12 max-w-7xl mx-auto w-full space-y-12">
+      <main className="flex-1 p-4 sm:p-6 md:p-12 max-w-7xl mx-auto w-full space-y-8 md:space-y-12">
         <div className="space-y-2">
-          <h2 className="text-4xl font-black tracking-tight flex items-center gap-4">
+          <h2 className="text-2xl md:text-4xl font-black tracking-tight flex flex-col sm:flex-row sm:items-center gap-2 md:gap-4">
             Welcome, Commander
-            <span className="text-sm font-bold px-3 py-1 bg-brand-success/10 text-brand-success rounded-full border border-brand-success/20 animate-pulse">
+            <span className="text-xs md:text-sm font-bold w-max px-2 py-0.5 md:px-3 md:py-1 bg-brand-success/10 text-brand-success rounded-full border border-brand-success/20 animate-pulse">
               ALL SYSTEMS ONLINE
             </span>
           </h2>
-          <p className="text-brand-text-muted text-lg max-w-2xl">
+          <p className="text-brand-text-muted text-sm md:text-lg max-w-2xl">
             Select an industrial project instance below to begin forensic analysis, traceability validation, or site audit operations.
           </p>
         </div>
@@ -479,22 +486,22 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                 ))}
               </div>
 
-              <div className="pt-4 border-t border-brand-border/30 flex items-center justify-between">
+              <div className="pt-4 border-t border-brand-border/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 text-sm text-brand-text-muted">
-                  <FileText className="w-4 h-4" />
+                  <FileText className="w-4 h-4 shrink-0" />
                   <span className="font-medium">Phase: {project.phase}</span>
                 </div>
                 {project.hasAccess ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap lg:flex-nowrap gap-2 w-full lg:w-auto">
                     <button
                       onClick={(e) => { e.stopPropagation(); setManageAccessModal(project); }}
-                      className="flex items-center gap-2 text-brand-text-muted hover:text-white font-bold text-xs uppercase tracking-widest bg-brand-bg/50 border border-brand-border/50 hover:border-brand-text-muted px-2 py-1 rounded transition-colors"
+                      className="flex-1 lg:flex-none justify-center flex items-center gap-2 text-brand-text-muted hover:text-white font-bold text-xs uppercase tracking-widest bg-brand-bg/50 border border-brand-border/50 hover:border-brand-text-muted px-2 py-1.5 md:py-1 rounded transition-colors"
                     >
-                      <ShieldCheck className="w-3 h-3" /> Manage Access
+                      <ShieldCheck className="w-3 h-3" /> <span className="hidden md:inline">Manage Access</span><span className="md:hidden">Access</span>
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleProjectClick(project); }}
-                      className="flex items-center gap-2 text-brand-accent font-bold text-xs uppercase tracking-widest bg-brand-accent/5 px-2 py-1 rounded hover:bg-brand-accent/10 transition-colors"
+                      className="flex-1 lg:flex-none justify-center flex items-center gap-2 text-brand-accent font-bold text-xs uppercase tracking-widest bg-brand-accent/5 px-2 py-1.5 md:py-1 rounded hover:bg-brand-accent/10 transition-colors"
                     >
                       Initialize <ChevronRight className="w-3 h-3" />
                     </button>
@@ -541,9 +548,9 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
         </div>
       </main>
 
-      <footer className="h-16 border-t border-brand-border/30 bg-brand-card/20 flex items-center justify-between px-12 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">
-        <span>© 2026 Hitachi Rail STS — Industrial Intelligence</span>
-        <div className="flex gap-8">
+      <footer className="h-auto md:h-16 py-4 md:py-0 border-t border-brand-border/30 bg-brand-card/20 flex flex-col md:flex-row items-center justify-between px-4 md:px-12 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em] gap-4">
+        <span className="text-center md:text-left">© 2026 Hitachi Rail STS — Industrial Intelligence</span>
+        <div className="flex flex-wrap items-center justify-center md:justify-end gap-4 md:gap-8 gap-y-2">
           <span>Privacy Protocol</span>
           <span>Forensic Guidelines</span>
           <span className="text-brand-accent">System v4.2.0</span>
@@ -665,7 +672,7 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
   if (loading) return <div className="p-12 text-center">Loading requirements...</div>;
 
   return (
-    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <div className="p-4 sm:p-6 grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 pb-20 md:pb-6">
       <div className="xl:col-span-2 space-y-6">
         <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
           <div className="p-4 border-b border-brand-border flex items-center justify-between">
@@ -683,7 +690,7 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[600px] text-left text-sm">
               <thead className="bg-brand-bg/50 text-brand-text-muted text-[10px] uppercase font-bold">
                 <tr>
                   <th className="px-4 py-3">Requirement ID & Description</th>
@@ -985,28 +992,28 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
   };
 
   return (
-    <div className="p-8 space-y-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="p-4 sm:p-8 space-y-6 sm:space-y-8 pb-20 md:pb-8">
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 sm:gap-6">
         <div className="space-y-1">
           <p className="text-xs text-brand-text-muted font-mono uppercase tracking-widest">Project Repository</p>
-          <h2 className="text-3xl font-black">Project Dataset</h2>
-          <p className="text-sm text-brand-text-muted max-w-xl">
+          <h2 className="text-2xl sm:text-3xl font-black">Project Dataset</h2>
+          <p className="text-xs sm:text-sm text-brand-text-muted max-w-xl">
             Centralized access to all formal documentation, telemetry logs, engineering diagrams, and field evidence indexed for this project instance.
           </p>
         </div>
 
-        <div className="flex gap-4">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full xl:w-auto">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
             <input
               type="text"
-              placeholder="Filter by name or category..."
+              placeholder="Filter by name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-accent w-64 md:w-80 transition-all focus:md:w-96"
+              className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-accent w-full sm:w-64 md:w-80 transition-all focus:md:w-96"
             />
           </div>
-          <button className="px-6 py-2.5 bg-brand-accent text-white rounded-xl font-bold flex items-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-95 shadow-lg shadow-brand-accent/20">
+          <button className="px-4 shrink-0 sm:px-6 py-2.5 bg-brand-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-95 shadow-lg shadow-brand-accent/20">
             <Download className="w-4 h-4" /> Import Data
           </button>
         </div>
@@ -1014,7 +1021,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
 
       <div className="bg-brand-card/30 border border-brand-border/50 rounded-3xl overflow-hidden backdrop-blur-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[800px] text-left border-collapse">
             <thead>
               <tr className="bg-brand-card/50 border-b border-brand-border/50">
                 <th className="px-6 py-5 text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em]">File Name</th>
@@ -1103,16 +1110,24 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
   );
 };
 
-const InsightChat = () => {
-  const [messages, setMessages] = useState([
-    { role: 'user', content: 'Why is the safety status for REQ-02 marked as a risk despite the passing test?' },
-    { role: 'assistant', content: 'A Critical Safety Risk exists for REQ-02 due to a conflict between formal test results and informal field evidence.', isAI: true }
-  ]);
+  const InsightChat = () => {
+    const [messages, setMessages] = useState([
+      { role: 'user', content: 'Why is the safety status for REQ-02 marked as a risk despite the passing test?' },
+      { role: 'assistant', content: 'A Critical Safety Risk exists for REQ-02 due to a conflict between formal test results and informal field evidence.', isAI: true }
+    ]);
+    const [showContext, setShowContext] = useState(false);
 
-  return (
-    <div className="flex flex-1 overflow-hidden">
-      <div className="w-72 border-r border-brand-border p-4 flex flex-col gap-6">
-        <div>
+    return (
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row pb-16 md:pb-0 relative">
+        <button onClick={() => setShowContext(!showContext)} className="md:hidden w-full flex items-center justify-center gap-2 p-2 bg-brand-card border-b border-brand-border text-xs font-bold text-brand-text-muted bg-brand-bg shrink-0 z-20">
+          {showContext ? "Hide Context" : "View Context"} <span className={cn("transition-transform", showContext ? "rotate-90" : "rotate-0")}>›</span>
+        </button>
+
+        <div className={cn(
+          "md:w-72 border-r border-brand-border p-4 flex flex-col gap-6 bg-brand-bg md:flex z-10 shrink-0 overflow-y-auto",
+          showContext ? "absolute inset-0 top-[37px] pb-16 h-auto" : "hidden"
+        )}>
+          <div>
           <h3 className="text-[10px] font-bold text-brand-text-muted uppercase mb-4">Forensic Context</h3>
           <div className="space-y-2">
             <button className="w-full flex items-center gap-3 px-3 py-2 bg-brand-accent/10 text-brand-accent rounded-lg border border-brand-accent/20">
@@ -1270,18 +1285,18 @@ const InsightChat = () => {
               placeholder="Query SSMS project instance..."
               className="w-full bg-brand-card border border-brand-border rounded-xl pl-12 pr-24 py-4 focus:outline-none focus:border-brand-accent"
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
-              <span className="text-[10px] font-bold text-brand-text-muted">CMD + K</span>
-              <button className="p-2 bg-brand-accent rounded-lg text-white">
+            <div className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 md:gap-3">
+              <span className="hidden sm:block text-[10px] font-bold text-brand-text-muted">CMD + K</span>
+              <button className="p-1.5 md:p-2 bg-brand-accent rounded-lg text-white">
                 <Send className="w-4 h-4" />
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-between px-2">
-            <p className="text-[8px] font-bold text-brand-text-muted uppercase">Source: Hitachi Evidence Retrieval Engine v4.2.0</p>
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between px-2 gap-2">
+            <p className="text-[8px] font-bold text-brand-text-muted uppercase text-center md:text-left">Source: Hitachi Evidence Retrieval Engine v4.2.0</p>
+            <div className="flex items-center justify-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked className="w-3 h-3 accent-brand-accent" />
+                <input type="checkbox" defaultChecked className="w-3 h-3 accent-brand-accent" />
                 <span className="text-[8px] font-bold text-brand-text-muted uppercase">Deep Search</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -1344,7 +1359,7 @@ const VDDLibrary = () => {
   };
 
   return (
-    <div className="p-6 flex flex-col items-center gap-6 overflow-y-auto h-full pb-24">
+    <div className="p-4 sm:p-6 flex flex-col items-center gap-4 sm:gap-6 overflow-x-auto overflow-y-auto h-full pb-24 w-full">
       <div className="w-[800px] flex justify-end shrink-0">
         <button
           onClick={handleDownload}
@@ -1525,10 +1540,10 @@ const ProjectLayout = () => {
         onBackHome={() => navigate('/')}
       />
 
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 flex flex-col overflow-hidden relative pb-16 md:pb-0">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-accent/5 via-transparent to-transparent pointer-events-none" />
 
-        <Header title={getTitle()} />
+        <Header title={getTitle()} onBackHome={() => navigate('/')} />
 
         <div className="flex-1 overflow-y-auto z-10">
           <AnimatePresence mode="wait">
@@ -1548,19 +1563,19 @@ const ProjectLayout = () => {
           </AnimatePresence>
         </div>
 
-        <footer className="h-10 border-t border-brand-border bg-brand-card flex items-center justify-between px-6 text-[10px] font-bold text-brand-text-muted z-10">
+        <footer className="hidden md:flex h-10 shrink-0 border-t border-brand-border bg-brand-card items-center justify-between px-6 text-[10px] font-bold text-brand-text-muted z-10 w-full">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 uppercase tracking-widest text-brand-accent">
               PROJECT INSTANCE: {project.id}
             </span>
-            <span className="flex items-center gap-1 uppercase tracking-widest">
+            <span className="flex items-center gap-1 uppercase tracking-widest hidden lg:flex">
               <ShieldCheck className="w-3 h-3" /> Hitachi Secure Environment
             </span>
           </div>
           <div className="flex items-center gap-4">
             <ScanButton />
             <span className="flex items-center gap-1 text-brand-accent uppercase tracking-widest">
-              <CheckCircle2 className="w-3 h-3" /> Compliance Engine 4.2.0
+              <CheckCircle2 className="w-3 h-3" /> <span className="hidden lg:inline">Compliance Engine 4.2.0</span>
             </span>
           </div>
         </footer>
