@@ -202,9 +202,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
       setLocalProjects(dbProjects);
     }
   }, [dbProjects]);
-  const [notifications, setNotifications] = useState<{ id: string, userName: string, projectName: string, projectId: string }[]>([
-    { id: 'notif-preset', userName: 'Marco Rossi', projectName: 'ETCS Signal Control', projectId: 'HR-015' }
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [accessRequestModal, setAccessRequestModal] = useState<Project | null>(null);
   const [manageAccessModal, setManageAccessModal] = useState<Project | null>(null);
 
@@ -214,26 +212,8 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   );
 
   const requestAccess = (project: Project) => {
-    // Check if a request for this project already exists
-    if (!notifications.some(n => n.projectId === project.id && n.userName === 'H. Evidence')) {
-      setNotifications([...notifications, { id: Math.random().toString(), userName: 'H. Evidence', projectName: project.name, projectId: project.id }]);
-    }
+    // Notifications for access requests are disabled for now
     setAccessRequestModal(null);
-  };
-
-  const approveAccess = (notifId: string, projectId: string, userName: string) => {
-    setLocalProjects(localProjects.map(p => {
-      if (p.id === projectId) {
-        // If it was our own request, grant us access
-        if (userName === 'H. Evidence') {
-          return { ...p, hasAccess: true, team: [...p.team, { id: 'u1', name: 'H. Evidence', role: 'Admin', email: 'h.evidence@hitachirail.com' }] };
-        }
-        // Otherwise just add them to the team
-        return { ...p, team: [...p.team, { id: `u-${Math.random()}`, name: userName, role: 'Viewer', email: userName.toLowerCase().replace(' ', '.') + '@hitachirail.com' }] };
-      }
-      return p;
-    }));
-    setNotifications(notifications.filter(n => n.id !== notifId));
   };
 
   const removeUser = (projectId: string, userId: string) => {
@@ -320,17 +300,9 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                       {notifications.length === 0 ? (
                         <p className="p-4 text-xs text-brand-text-muted text-center">No new notifications</p>
                       ) : (
-                        notifications.map(notif => (
-                          <div key={notif.id} className="p-4 border-b border-brand-border/50 hover:bg-brand-accent/5 flex flex-col gap-2 transition-colors">
-                            <p className="text-xs text-slate-300">
-                              <span className="font-bold text-white">{notif.userName}</span> requested access to <span className="font-bold text-brand-accent">{notif.projectName}</span>
-                            </p>
-                            <button
-                              onClick={() => approveAccess(notif.id, notif.projectId, notif.userName)}
-                              className="self-end px-3 py-1 bg-brand-success/20 text-brand-success border border-brand-success/30 rounded text-xs font-bold hover:bg-brand-success hover:text-white transition-colors cursor-pointer"
-                            >
-                              Approve
-                            </button>
+                        notifications.map((notif: any) => (
+                          <div key={notif.id} className="p-4 border-b border-brand-border/50">
+                            {/* Future implementation of notifications goes here */}
                           </div>
                         ))
                       )}
