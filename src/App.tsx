@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { AuthView } from './components/AuthView';
 // @ts-ignore
 import { toPng } from 'html-to-image';
@@ -33,12 +34,19 @@ import {
   Table as TableIcon,
   LogOut,
   Lock,
-  RefreshCw
+  RefreshCw,
+  FilePlus,
+  AlertCircle,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  Search as SearchIcon,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '@/src/lib/utils';
+import { cn } from './lib/utils';
 import { projects as mockProjects, requirements as mockRequirements, stations, Project, Requirement, Station } from './mockData';
-import { useProjects, useProject, useRequirements, useFiles, triggerDatabaseScan } from './hooks/useSupabase';
+import { useProjects, useProject, useRequirements, useFiles, useAnomalies, triggerDatabaseScan, uploadProjectFile, importRequirementsFromDify } from './hooks/useSupabase';
 import {
   BarChart,
   Bar,
@@ -51,12 +59,16 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { supabase } from './lib/supabase';
 
 // --- Components ---
 
 const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, setActiveTab: (tab: string) => void, onBackHome: () => void }) => {
   const navItems = [
     { id: 'consistency', icon: Map, label: 'Consistency Map' },
+    { id: 'analytics', icon: LayoutDashboard, label: 'Analytics' },
+    { id: 'calendar', icon: CalendarIcon, label: 'Calendar' },
     { id: 'dataset', icon: Files, label: 'Dataset' },
     { id: 'chat', icon: MessageSquare, label: 'Insight Chat' },
     { id: 'vdd', icon: FileText, label: 'VDD Library' },
@@ -98,20 +110,14 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
         ))}
       </nav>
 
-      <div className="hidden md:block p-4 border-t border-brand-border space-y-4">
-        <button className="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2 text-brand-text-muted hover:text-white transition-colors">
-          <Settings className="w-5 h-5" />
-          <span className="font-medium hidden lg:block">Settings</span>
+      <div className="hidden md:block p-4 border-t border-brand-border">
+        <button 
+          onClick={() => supabase.auth.signOut()}
+          className="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2 text-brand-error hover:bg-brand-error/10 rounded-xl transition-all font-bold uppercase text-[10px] tracking-[0.2em] group cursor-pointer"
+        >
+          <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          <span className="hidden lg:block">Logout</span>
         </button>
-        <div className="flex items-center justify-center lg:justify-start gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-brand-border flex items-center justify-center border border-brand-accent/20 shrink-0">
-            <User className="w-4 h-4" />
-          </div>
-          <div className="hidden lg:block overflow-hidden">
-            <p className="text-sm font-medium truncate">H. Evidence</p>
-            <p className="text-xs text-brand-text-muted truncate">Retrieval Agent</p>
-          </div>
-        </div>
       </div>
     </aside>
   );
@@ -634,17 +640,251 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
       </AnimatePresence>
     </div>
   );
+};const ProjectAnalytics = ({ projectId }: { projectId?: string }) => {
+  const { requirements, loading: reqsLoading } = useRequirements(projectId);
+  const { files, loading: filesLoading } = useFiles(projectId);
+  const { anomalies, loading: anomaliesLoading, toggleAnomalyVisibility } = useAnomalies(projectId);
+  const [showHidden, setShowHidden] = useState(false);
+
+  if (reqsLoading || filesLoading || anomaliesLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <RefreshCw className="w-8 h-8 animate-spin text-brand-accent" />
+      </div>
+    );
+  }
+
+  // Calculate Requirement Distribution
+  const reqStats = [
+    { name: 'PASS', value: requirements.filter(r => r.outcome === 'PASS').length, color: '#10b981' },
+    { name: 'FAIL', value: requirements.filter(r => r.outcome === 'FAIL').length, color: '#ef4444' },
+    { name: 'PENDING', value: requirements.filter(r => r.outcome === 'PENDING').length, color: '#f59e0b' },
+  ].filter(s => s.value > 0);
+
+  // Calculate File Categories
+  const fileCategories = files.reduce((acc: any, file) => {
+    acc[file.category] = (acc[file.category] || 0) + 1;
+    return acc;
+  }, {});
+  const fileStats = Object.keys(fileCategories).map(cat => ({
+    name: cat,
+    value: fileCategories[cat]
+  }));
+
+  // Calculate Anomaly Severity (excluding hidden)
+  const visibleAnomalies = anomalies.filter(a => !a.is_hidden);
+  const anomalyStats = [
+    { name: 'HIGH', value: visibleAnomalies.filter(a => a.severity === 'HIGH').length, color: '#ef4444' },
+    { name: 'MEDIUM', value: visibleAnomalies.filter(a => a.severity === 'MEDIUM').length, color: '#f59e0b' },
+    { name: 'LOW', value: visibleAnomalies.filter(a => a.severity === 'LOW').length, color: '#3b82f6' },
+  ].filter(s => s.value > 0);
+
+  return (
+    <div className="p-8 space-y-8 h-full overflow-y-auto hide-scrollbar pb-20 md:pb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-brand-card/40 border border-brand-border/50 rounded-2xl p-6 backdrop-blur-xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-brand-accent/10 flex items-center justify-center border border-brand-accent/20">
+              <CheckCircle2 className="w-5 h-5 text-brand-accent" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">Traceability Status</h3>
+              <p className="text-[10px] text-brand-text-muted uppercase tracking-widest font-bold">Requirement Outcomes</p>
+            </div>
+          </div>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={reqStats}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={70}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {reqStats.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
+                  itemStyle={{ color: '#f8fafc' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex justify-center gap-4 mt-2">
+            {reqStats.map(s => (
+              <div key={s.name} className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                <span className="text-[10px] font-bold text-brand-text-muted">{s.name}: {s.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-brand-card/40 border border-brand-border/50 rounded-2xl p-6 backdrop-blur-xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-brand-error/10 flex items-center justify-center border border-brand-error/20">
+              <AlertTriangle className="w-5 h-5 text-brand-error" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">Safety Anomalies</h3>
+              <p className="text-[10px] text-brand-text-muted uppercase tracking-widest font-bold">Risk Severity Breakdown</p>
+            </div>
+          </div>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={anomalyStats}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} 
+                />
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }}
+                  itemStyle={{ color: '#f8fafc', fontSize: '10px', fontWeight: 'bold' }}
+                  labelStyle={{ color: '#f8fafc', fontSize: '10px', fontWeight: 'black', marginBottom: '4px', textTransform: 'uppercase' }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {anomalyStats.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-center text-[10px] font-bold text-brand-text-muted mt-2 uppercase tracking-widest">
+            {anomalies.length} TOTAL ANOMALIES DETECTED
+          </p>
+        </div>
+
+        <div className="bg-brand-card/40 border border-brand-border/50 rounded-2xl p-6 backdrop-blur-xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-brand-success/10 flex items-center justify-center border border-brand-success/20">
+              <Database className="w-5 h-5 text-brand-success" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">Project Dataset</h3>
+              <p className="text-[10px] text-brand-text-muted uppercase tracking-widest font-bold">Document Composition</p>
+            </div>
+          </div>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={fileStats} margin={{ left: -20, right: 0, top: 10, bottom: 0 }}>
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#94a3b8" 
+                  fontSize={9} 
+                  fontWeight="bold" 
+                  tickLine={false} 
+                  axisLine={false}
+                />
+                <YAxis type="number" hide />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }}
+                  itemStyle={{ color: '#f8fafc', fontSize: '10px', fontWeight: 'bold' }}
+                  labelStyle={{ color: '#f8fafc', fontSize: '10px', fontWeight: 'black', marginBottom: '4px', textTransform: 'uppercase' }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={32}>
+                  {fileStats.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-center text-[10px] font-bold text-brand-text-muted mt-2 uppercase tracking-widest">
+            {files.length} FILES INDEXED IN REPOSITORY
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-brand-card/30 border border-brand-border/50 rounded-2xl p-6 backdrop-blur-xl">
+          <h4 className="text-xs font-black text-brand-accent uppercase tracking-[0.2em] mb-4">Latest Anomalies Report</h4>
+          <div className="space-y-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+            {anomalies.filter(a => !a.is_hidden).slice(0, 5).map((anomaly, i) => (
+              <div key={i} className="flex items-start gap-4 p-3 bg-brand-bg/40 border border-brand-border/30 rounded-xl hover:border-brand-accent/50 transition-colors">
+                <div className={cn(
+                  "mt-1 w-2 h-2 rounded-full shrink-0",
+                  anomaly.severity === 'HIGH' ? "bg-brand-error shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                  anomaly.severity === 'MEDIUM' ? "bg-brand-warning" : "bg-brand-accent"
+                )} />
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-white line-clamp-2">{anomaly.message}</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[8px] font-black text-brand-text-muted uppercase tracking-widest">Source: {anomaly.file_name}</span>
+                    <span className={cn(
+                      "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest",
+                      anomaly.severity === 'HIGH' ? "bg-brand-error/10 text-brand-error" :
+                      anomaly.severity === 'MEDIUM' ? "bg-brand-warning/10 text-brand-warning" : "bg-brand-accent/10 text-brand-accent"
+                    )}>{anomaly.severity}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {anomalies.filter(a => !a.is_hidden).length === 0 && (
+              <p className="text-xs text-brand-text-muted italic text-center py-8">No active anomalies detected in the current mission context.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-brand-card/30 border border-brand-border/50 rounded-2xl p-6 backdrop-blur-xl">
+          <h4 className="text-xs font-black text-brand-success uppercase tracking-[0.2em] mb-4">Requirement Statistics</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-brand-bg/40 border border-brand-border/30 rounded-xl p-4 flex flex-col justify-center items-center space-y-1">
+              <p className="text-2xl font-black text-brand-accent">{requirements.length}</p>
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest text-center">Total Requirements</p>
+            </div>
+            <div className="bg-brand-bg/40 border border-brand-border/30 rounded-xl p-4 flex flex-col justify-center items-center space-y-1">
+              <p className="text-2xl font-black text-brand-success">
+                {requirements.length > 0 ? Math.round((requirements.filter(r => r.outcome === 'PASS').length / requirements.length) * 100) : 0}%
+              </p>
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest text-center">Pass Rate</p>
+            </div>
+            <div className="bg-brand-bg/40 border border-brand-border/30 rounded-xl p-4 flex flex-col justify-center items-center space-y-1">
+              <p className="text-2xl font-black text-brand-error">
+                {requirements.filter(r => r.outcome === 'FAIL').length}
+              </p>
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest text-center">Critical Failures</p>
+            </div>
+            <div className="bg-brand-bg/40 border border-brand-border/30 rounded-xl p-4 flex flex-col justify-center items-center space-y-1">
+              <p className="text-2xl font-black text-brand-warning">
+                {requirements.filter(r => r.outcome === 'PENDING').length}
+              </p>
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest text-center">Unverified Items</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
+const ConsistencyMap = ({ projectId, onPackageClick }: { projectId?: string, onPackageClick?: (v: string) => void }) => {
   const { requirements: dataToUse, loading, updateOutcome } = useRequirements(projectId);
+  const { anomalies, loading: anomaliesLoading, toggleAnomalyVisibility } = useAnomalies(projectId);
   const [selectedReq, setSelectedReq] = useState<any>(null);
   const [selectedTest, setSelectedTest] = useState<any>(null);
+  const [showHidden, setShowHidden] = useState(false);
 
   if (loading) return <div className="p-12 text-center">Loading requirements...</div>;
 
+  const totalReqs = dataToUse.length;
+  const passCount = dataToUse.filter((r: any) => r.outcome === 'PASS').length;
+  const passPercent = totalReqs === 0 ? 0 : Math.round((passCount / totalReqs) * 100);
+  const gapPercent = totalReqs === 0 ? 0 : 100 - passPercent;
+
   return (
-    <div className="p-4 sm:p-6 grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 pb-20 md:pb-6">
+    <><div className="p-4 sm:p-6 grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 pb-20 md:pb-6">
       <div className="xl:col-span-2 space-y-6">
         <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
           <div className="p-4 border-b border-brand-border flex items-center justify-between">
@@ -652,34 +892,83 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
               <LayoutDashboard className="w-4 h-4 text-brand-accent" />
               Traceability Matrix
             </h3>
-            <div className="flex gap-4 text-[10px] font-bold">
-              <span className="flex items-center gap-1 text-brand-success">
-                <div className="w-1.5 h-1.5 rounded-full bg-brand-success"></div> 82% PASS
-              </span>
-              <span className="flex items-center gap-1 text-brand-error">
-                <div className="w-1.5 h-1.5 rounded-full bg-brand-error"></div> 18% TRACEABILITY GAP
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-4 text-[10px] font-bold mr-4 border-r border-brand-border pr-4">
+                <span className="flex items-center gap-1 text-brand-success">
+                  <div className="w-1.5 h-1.5 rounded-full bg-brand-success"></div> {passPercent}% PASS
+                </span>
+                <span className="flex items-center gap-1 text-brand-error">
+                  <div className="w-1.5 h-1.5 rounded-full bg-brand-error"></div> {gapPercent}% TRACEABILITY GAP
+                </span>
+              </div>
+
+              <input
+                type="file"
+                id="req-import-input-matrix"
+                className="hidden"
+                accept=".pdf,.txt,.xlsx,.xls,.csv"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !projectId) return;
+                  const btn = document.getElementById('req-import-btn-matrix') as HTMLButtonElement;
+                  const original = btn.innerHTML;
+                  btn.disabled = true;
+                  btn.innerHTML = '<span class="animate-spin mr-1">◌</span> Processing...';
+                  try {
+                    // Chiamata alla pipeline unificata: Dataset + Chunks + AI Requirements
+                    await uploadProjectFile(projectId, file, true);
+                    alert(`Success! File indexed in Dataset and requirements extracted.`);
+                  } catch (err: any) {
+                    alert("Error: " + (err.message || String(err)));
+                  } finally {
+                    btn.innerHTML = original;
+                    btn.disabled = false;
+                    e.target.value = '';
+                  }
+                } } />
+              <button
+                id="req-import-btn-matrix"
+                onClick={() => document.getElementById('req-import-input-matrix')?.click()}
+                className="flex items-center gap-1.5 px-3 py-1 bg-brand-accent/10 border border-brand-accent/30 text-brand-accent rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-brand-accent hover:text-white transition-all active:scale-95 shadow-sm"
+              >
+                <FilePlus className="w-3 h-3" />
+                Import Reqs
+              </button>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left text-sm">
-              <thead className="bg-brand-bg/50 text-brand-text-muted text-[10px] uppercase font-bold">
+          <div className="overflow-auto max-h-[550px] custom-scrollbar">
+            <table className="w-full min-w-[600px] text-left text-sm relative">
+              <thead className="bg-brand-bg/90 text-brand-text-muted text-[10px] uppercase font-bold sticky top-0 z-10 backdrop-blur-md">
                 <tr>
                   <th className="px-4 py-3">Requirement ID & Description</th>
-                  <th className="px-4 py-3">Linked Test</th>
+                  <th className="px-4 py-3">Package Version</th>
                   <th className="px-4 py-3">Outcome</th>
                   <th className="px-4 py-3">Compliance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-border">
-                {dataToUse.map((req: any) => (
-                  <tr key={req.id} className="hover:bg-brand-border/20 transition-colors">
+                {dataToUse.map((req: any, index: number) => (
+                  <tr key={`${req.id}-${index}`} className="hover:bg-brand-border/20 transition-colors">
                     <td className="px-4 py-4 cursor-pointer hover:bg-brand-accent/5 transition-colors group" onClick={() => setSelectedReq(req)}>
-                      <p className="font-bold group-hover:text-brand-accent group-hover:underline transition-all cursor-pointer inline-block">{req.id}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold group-hover:text-brand-accent group-hover:underline transition-all cursor-pointer inline-block">{req.id}</p>
+                        {req.packageVersion && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onPackageClick) onPackageClick(req.packageVersion);
+                            } }
+                            className="text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-colors cursor-pointer"
+                            title={`View details for ${req.packageVersion}`}
+                          >
+                            {req.packageVersion}
+                          </button>
+                        )}
+                      </div>
                       <p className="text-xs text-brand-text-muted mt-1">{req.description}</p>
                     </td>
-                    <td className="px-4 py-4 text-brand-accent font-mono cursor-pointer hover:underline" onClick={() => req.linkedTest !== 'N/A' && setSelectedTest(req)} title={`View source code for test ${req.linkedTest}`}>
-                      {req.linkedTest}
+                    <td className="px-4 py-4 text-brand-text-muted text-xs font-bold uppercase tracking-wider">
+                      {req.packageVersion}
                     </td>
                     <td className="px-4 py-4">
                       <select
@@ -687,9 +976,9 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
                         onChange={(e) => updateOutcome(req.id, req.linkedTest, e.target.value)}
                         className={cn(
                           "px-2 py-0.5 rounded-full text-[10px] font-bold outline-none cursor-pointer text-center appearance-none border border-transparent hover:border-current transition-colors",
-                          req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" : 
-                          req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" :
-                          "bg-brand-warning/20 text-brand-warning"
+                          req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" :
+                            req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" :
+                              "bg-brand-warning/20 text-brand-warning"
                         )}
                         title="Force outcome manually"
                         onClick={(e) => e.stopPropagation()}
@@ -700,151 +989,150 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
                       </select>
                     </td>
                     <td className="px-4 py-4">
-                      {req.compliance ? (
-                        <CheckCircle2 className="w-5 h-5 text-brand-success" />
-                      ) : (
-                        <AlertTriangle className="w-5 h-5 text-brand-error" />
-                      )}
+                      {(() => {
+                        const visibleAnomalies = anomalies.filter((a: any) => !a.is_hidden);
+                        const reqAnomalies = visibleAnomalies.filter((a: any) => a.message.includes(req.id) || a.source.includes(req.id));
+                        if (reqAnomalies.length === 0) {
+                          return (
+                            <span title="No anomalies detected">
+                              <CheckCircle2 className="w-5 h-5 text-brand-success" />
+                            </span>
+                          );
+                        }
+                        
+                        const hasHigh = reqAnomalies.some((a: any) => a.severity === 'HIGH');
+                        const hasMedium = reqAnomalies.some((a: any) => a.severity === 'MEDIUM');
+                        
+                        if (hasHigh) {
+                          return (
+                            <span title="High Severity Anomaly Detected">
+                              <AlertCircle className="w-5 h-5 text-brand-error" />
+                            </span>
+                          );
+                        } else if (hasMedium) {
+                          return (
+                            <span title="Medium Severity Anomaly Detected">
+                              <AlertCircle className="w-5 h-5 text-brand-warning" />
+                            </span>
+                          );
+                        } else {
+                          return (
+                            <span title="Low Severity Anomaly Detected">
+                              <AlertCircle className="w-5 h-5 text-brand-accent" />
+                            </span>
+                          );
+                        }
+                      })()}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <div className="p-6 bg-brand-bg/30 border-t border-brand-border grid grid-cols-2 gap-8">
+            <div className="text-center space-y-1">
+              <p className="text-5xl font-black text-brand-accent tracking-tighter">{passCount.toString().padStart(2, '0')}</p>
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-[0.2em]">Verified Items</p>
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-5xl font-black text-brand-error tracking-tighter">{(totalReqs - passCount).toString().padStart(2, '0')}</p>
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-[0.2em]">Unresolved Gap</p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-brand-card border border-brand-border rounded-xl p-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-brand-accent/10 flex items-center justify-center">
-              <Cloud className="text-brand-accent w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-brand-text-muted uppercase">Cloud Instance</p>
-              <p className="font-bold">v1.2.0 Stable Build</p>
-            </div>
-            <div className="ml-auto w-2 h-2 rounded-full bg-brand-success"></div>
-          </div>
-          <div className="bg-brand-card border border-brand-border rounded-xl p-4 flex items-center gap-4 border-l-4 border-l-brand-error">
-            <div className="w-12 h-12 rounded-lg bg-brand-error/10 flex items-center justify-center">
-              <Database className="text-brand-error w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-brand-text-muted uppercase">Napoli Station Edge</p>
-              <p className="font-bold">v1.1.5 Legacy Patch</p>
-            </div>
-            <span className="ml-auto text-[10px] font-bold bg-brand-error/20 text-brand-error px-2 py-0.5 rounded border border-brand-error/30">
-              DRIFT DETECTED
-            </span>
-          </div>
-        </div>
+
       </div>
 
-      <div className="bg-brand-card border border-brand-border rounded-xl flex flex-col">
+      <div className="bg-brand-card border border-brand-border rounded-xl flex flex-col max-h-[700px]">
         <div className="p-4 border-b border-brand-border flex items-center justify-between">
           <h3 className="font-bold flex items-center gap-2 italic uppercase tracking-wider text-sm">
             <Search className="w-4 h-4 text-brand-accent" />
             The Grey Area
           </h3>
+          <button 
+            onClick={() => setShowHidden(!showHidden)}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+              showHidden ? "bg-brand-accent text-white" : "bg-brand-bg text-brand-text-muted border border-brand-border"
+            )}
+          >
+            {showHidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+            {showHidden ? "Viewing Hidden" : "View Hidden"}
+          </button>
         </div>
-        <div className="flex-1 p-4 space-y-6 overflow-y-auto">
-          <div className="bg-brand-bg/50 rounded-xl p-4 border border-brand-border space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-brand-accent" />
-                <span className="text-[10px] font-bold uppercase">AI Audit Feed</span>
-              </div>
-              <span className="text-[10px] font-bold text-brand-error bg-brand-error/10 px-2 py-0.5 rounded">1 ACTIVE CONFLICT</span>
+        <div className="flex-1 p-4 space-y-6 overflow-y-auto custom-scrollbar">
+          {anomaliesLoading ? (
+            <div className="flex flex-col items-center justify-center h-40 space-y-4">
+              <RefreshCw className="w-8 h-8 animate-spin text-brand-accent opacity-50" />
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">AI Audit in corso...</p>
             </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-[10px] font-bold text-brand-error uppercase">Anomaly Correlation: REQ-02</p>
-                <span className="text-[10px] text-brand-text-muted font-mono">14:22:05 UTC</span>
-              </div>
-              <h4 className="font-bold text-sm">Conflicting evidence found in unstructured data sources</h4>
-
-              <div className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-2">
+          ) : anomalies.length === 0 ? (
+            <div className="bg-brand-bg/50 rounded-xl p-8 border border-brand-border border-dashed flex flex-col items-center text-center space-y-3">
+              <ShieldCheck className="w-8 h-8 text-brand-success opacity-50" />
+              <p className="text-xs font-bold text-brand-text-muted uppercase tracking-widest">Nessuna inesattezza rilevata dai sistemi AI</p>
+            </div>
+          ) : (
+            anomalies.filter(a => showHidden ? a.is_hidden : !a.is_hidden).map((anomaly, i) => (
+              <motion.div
+                key={anomaly.id || i}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-brand-bg/50 rounded-xl p-4 border border-brand-border space-y-3 border-l-4"
+                style={{ borderLeftColor: anomaly.severity === 'HIGH' ? 'var(--color-brand-error)' : anomaly.severity === 'MEDIUM' ? 'var(--color-brand-warning)' : 'var(--color-brand-accent)' }}
+              >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-brand-success flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> FORMAL PASS
-                  </span>
-                  <span className="text-[10px] italic text-brand-text-muted">System Telemetry</span>
-                </div>
-                <p className="text-xs text-brand-text-muted italic">
-                  "Telemetry ID #49281 indicates 0% jitter on threshold stability at Napoli Station nodes. Compliance verified by auto-validator."
-                </p>
-              </div>
-
-              <div className="flex justify-center">
-                <div className="w-6 h-6 rounded-full bg-brand-error flex items-center justify-center text-[10px] font-bold">VS</div>
-              </div>
-
-              <div className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-2 border-l-2 border-l-brand-error">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-brand-error flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> INFORMAL CONFLICT
-                  </span>
-                  <span className="text-[10px] italic text-brand-text-muted">Source: Email Chain</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-brand-border flex items-center justify-center text-[8px]">EZ</div>
-                  <div>
-                    <p className="text-[10px] font-bold">Elena Zhao</p>
-                    <p className="text-[8px] text-brand-text-muted">Lead QA Engineer</p>
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className={cn("w-4 h-4", anomaly.severity === 'HIGH' ? "text-brand-error" : "text-brand-warning")} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">AI Insight: {anomaly.file_name}</span>
                   </div>
+                  <span className={cn(
+                    "text-[8px] font-bold px-2 py-0.5 rounded border uppercase",
+                    anomaly.severity === 'HIGH' ? "bg-brand-error/20 text-brand-error border-brand-error/30" :
+                      anomaly.severity === 'MEDIUM' ? "bg-brand-warning/20 text-brand-warning border-brand-warning/30" :
+                        "bg-brand-accent/20 text-brand-accent border-brand-accent/30"
+                  )}>
+                    {anomaly.severity} RISK
+                  </span>
                 </div>
-                <p className="text-xs text-brand-text-muted italic">
-                  "Telemetry tools aren't catching it yet, but manually we're seeing threshold instability at peak hours. Do not release Napoli patch v1.1.5 yet."
-                </p>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <button className="flex items-center justify-center gap-2 py-2 text-[10px] font-bold border border-brand-border rounded hover:bg-brand-border/50 transition-colors">
-                  <ExternalLink className="w-3 h-3" /> Open Source Email
-                </button>
-                <button className="flex items-center justify-center gap-2 py-2 text-[10px] font-bold border border-brand-border rounded hover:bg-brand-border/50 transition-colors">
-                  <FileText className="w-3 h-3" /> View VDD Section
-                </button>
-              </div>
-            </div>
-          </div>
+                <h4 className="font-bold text-sm leading-tight">{anomaly.message}</h4>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-brand-text-muted">
-              <History className="w-3 h-3" />
-              <span className="text-[10px] font-bold uppercase">Previous Resolutions</span>
-            </div>
-            <div className="bg-brand-bg/30 border border-brand-border rounded-lg p-3 flex items-center justify-between opacity-60">
-              <div>
-                <p className="text-[10px] font-bold">REQ-09: Passenger Sync</p>
-                <p className="text-[8px] text-brand-text-muted italic">Mapped informal Jira ticket J-901 to formal PASS state after peer review.</p>
-              </div>
-              <span className="text-[8px] font-bold text-brand-success uppercase">Resolved</span>
-            </div>
-          </div>
-        </div>
-        <div className="p-4 border-t border-brand-border grid grid-cols-2 gap-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-brand-accent">42</p>
-            <p className="text-[8px] font-bold text-brand-text-muted uppercase">Verified Items</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-brand-error">01</p>
-            <p className="text-[8px] font-bold text-brand-text-muted uppercase">Unresolved Gap</p>
-          </div>
+                <div className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-1">
+                  <span className="text-[8px] font-bold text-brand-text-muted uppercase tracking-widest">Contesto rilevato:</span>
+                  <p className="text-xs text-brand-text-muted italic leading-relaxed">
+                    "{anomaly.source}"
+                  </p>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-[8px] text-brand-text-muted font-mono">{new Date(anomaly.created_at).toLocaleTimeString()} UTC</span>
+                  <button 
+                    onClick={() => toggleAnomalyVisibility(anomaly.id, !anomaly.is_hidden)}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-brand-card border border-brand-border text-[9px] font-bold text-brand-text-muted hover:text-white hover:border-brand-accent transition-all uppercase"
+                  >
+                    {anomaly.is_hidden ? <RefreshCw className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                    {anomaly.is_hidden ? "Restore" : "Hide from VDD"}
+                  </button>
+                </div>
+              </motion.div>
+            ))
+          )}
         </div>
       </div>
 
-      <AnimatePresence>
+    </div>
+    <AnimatePresence>
         {selectedReq && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative"
             >
-              <button 
+              <button
                 onClick={() => setSelectedReq(null)}
                 className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer"
               >
@@ -852,7 +1140,7 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
               </button>
               <h3 className="text-xl font-bold mb-2">Requirement Details</h3>
               <p className="text-sm font-bold text-brand-accent mb-4">{selectedReq.id}: {selectedReq.description}</p>
-              
+
               <div className="bg-brand-bg/50 border border-brand-border/50 p-4 rounded-xl">
                 <h4 className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest mb-2">Full Description</h4>
                 <p className="text-sm text-slate-300">
@@ -875,8 +1163,8 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
                   </span>
                 </div>
                 <div className="text-right">
-                   <p className="text-[10px] font-bold text-brand-text-muted uppercase">Target VDD</p>
-                   <p className="text-sm text-brand-text-muted">{selectedReq.targetVdd}</p>
+                  <p className="text-[10px] font-bold text-brand-text-muted uppercase">Target VDD</p>
+                  <p className="text-sm text-brand-text-muted">{selectedReq.targetVdd}</p>
                 </div>
               </div>
             </motion.div>
@@ -885,7 +1173,7 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
 
         {selectedTest && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 xl:p-12 bg-black/50 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -901,14 +1189,14 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
                     <p className="text-[10px] font-mono text-slate-400">tests/integration/{selectedTest.linkedTest.toLowerCase()}_spec.ts</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setSelectedTest(null)}
                   className="text-slate-400 hover:text-white cursor-pointer transition-colors p-2 rounded-lg hover:bg-white/5"
                 >
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto p-6 bg-[#0D1117] text-slate-300">
                 <pre className="font-mono text-xs md:text-sm whitespace-pre-wrap leading-loose">
                   <code>{selectedTest.testCode}</code>
@@ -918,10 +1206,9 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
               <div className="p-3 border-t border-white/10 bg-[#161B22] flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-2">
-                    {selectedTest.outcome === 'PASS' 
+                    {selectedTest.outcome === 'PASS'
                       ? <><CheckCircle2 className="w-3 h-3 text-green-400" /> Pipeline: SUCCESS</>
-                      : <><AlertTriangle className="w-3 h-3 text-red-400" /> Pipeline: FAILED</>
-                    }
+                      : <><AlertTriangle className="w-3 h-3 text-red-400" /> Pipeline: FAILED</>}
                   </span>
                   <span>Execution Time: ~45ms</span>
                 </div>
@@ -934,15 +1221,31 @@ const ConsistencyMap = ({ projectId }: { projectId?: string }) => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 };
-
-
 
 const ProjectDataset = ({ projectId }: { projectId?: string }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { files: dataset, loading } = useFiles(projectId);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+
+    try {
+      setIsUploading(true);
+      await uploadProjectFile(projectId, file);
+    } catch (err: any) {
+      console.error(err);
+      alert('Error uploading file: ' + err.message);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   if (loading) return <div className="p-12 text-center">Loading dataset...</div>;
 
@@ -960,6 +1263,43 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
       case 'CAD':
       case 'SQL': return <Database className="w-5 h-5 text-brand-warning" />;
       default: return <FileArchive className="w-5 h-5 text-brand-text-muted" />;
+    }
+  };
+
+  const totalIndexedDocuments = dataset.length.toString();
+  const rawSumMb = dataset.reduce((sum, file) => sum + (file.rawSizeMb || 0), 0);
+  const telemetryDataVolume = rawSumMb >= 1024 
+    ? `${(rawSumMb / 1024).toFixed(1)} GB` 
+    : `${rawSumMb.toFixed(1)} MB`;
+  
+  const pendingIntegrityFlags = dataset.filter(f => ['Flagged', 'Needs Review', 'Outdated'].includes(f.status)).length.toString().padStart(2, '0');
+
+  const handleFileAction = async (storagePath: string | undefined, forceDownload = false) => {
+    if (!storagePath) {
+      alert("This mock file is not actually uploaded to cloud storage.");
+      return;
+    }
+    try {
+      const { data, error } = await supabase.storage
+        .from('project-files')
+        .createSignedUrl(storagePath, 60, { download: forceDownload });
+      
+      if (error) throw error;
+      
+      if (data?.signedUrl) {
+        if (forceDownload) {
+           const link = document.createElement('a');
+           link.href = data.signedUrl;
+           link.download = '';
+           document.body.appendChild(link);
+           link.click();
+           document.body.removeChild(link);
+        } else {
+           window.open(data.signedUrl, '_blank');
+        }
+      }
+    } catch(err: any) {
+      alert("Error generating access link: " + err.message);
     }
   };
 
@@ -985,8 +1325,19 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
               className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-accent w-full sm:w-64 md:w-80 transition-all focus:md:w-96"
             />
           </div>
-          <button className="px-4 shrink-0 sm:px-6 py-2.5 bg-brand-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-95 shadow-lg shadow-brand-accent/20">
-            <Download className="w-4 h-4" /> Import Data
+          <input 
+            type="file" 
+            className="hidden" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="px-4 shrink-0 sm:px-6 py-2.5 bg-brand-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-95 shadow-lg shadow-brand-accent/20 disabled:opacity-50"
+          >
+            {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} 
+            {isUploading ? 'Uploading...' : 'Import Data'}
           </button>
         </div>
       </div>
@@ -1034,10 +1385,18 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 hover:bg-brand-accent/20 rounded-lg text-brand-accent hover:text-white transition-all">
+                      <button 
+                        onClick={() => handleFileAction(file.storage_path, false)}
+                        className="p-1.5 hover:bg-brand-accent/20 rounded-lg text-brand-accent hover:text-white transition-all cursor-pointer"
+                        title="Open file"
+                      >
                         <ExternalLink className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 hover:bg-brand-success/20 rounded-lg text-brand-success hover:text-white transition-all">
+                      <button 
+                        onClick={() => handleFileAction(file.storage_path, true)}
+                        className="p-1.5 hover:bg-brand-success/20 rounded-lg text-brand-success hover:text-white transition-all cursor-pointer"
+                        title="Download file"
+                      >
                         <Download className="w-4 h-4" />
                       </button>
                     </div>
@@ -1055,7 +1414,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
             <FileText className="w-7 h-7 text-brand-accent" />
           </div>
           <div>
-            <p className="text-3xl font-black leading-none">124</p>
+            <p className="text-3xl font-black leading-none">{totalIndexedDocuments}</p>
             <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em] mt-1">Total Indexed Documents</p>
           </div>
         </div>
@@ -1064,8 +1423,8 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
             <Database className="w-7 h-7 text-brand-success" />
           </div>
           <div>
-            <p className="text-3xl font-black leading-none">8.4 GB</p>
-            <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em] mt-1">Telemtry Data Volume</p>
+            <p className="text-3xl font-black leading-none">{telemetryDataVolume}</p>
+            <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em] mt-1">Telemetry Data Volume</p>
           </div>
         </div>
         <div className="bg-brand-card/20 border border-brand-border/30 rounded-3xl p-6 flex items-center gap-6">
@@ -1073,7 +1432,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
             <AlertTriangle className="w-7 h-7 text-brand-error" />
           </div>
           <div>
-            <p className="text-3xl font-black leading-none">03</p>
+            <p className="text-3xl font-black leading-none">{pendingIntegrityFlags}</p>
             <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-[0.2em] mt-1">Pending Integrity Flags</p>
           </div>
         </div>
@@ -1082,23 +1441,174 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
   );
 };
 
-  const InsightChat = () => {
-    const [messages, setMessages] = useState([
-      { role: 'user', content: 'Why is the safety status for REQ-02 marked as a risk despite the passing test?' },
-      { role: 'assistant', content: 'A Critical Safety Risk exists for REQ-02 due to a conflict between formal test results and informal field evidence.', isAI: true }
-    ]);
-    const [showContext, setShowContext] = useState(false);
+  const InsightChat = ({ 
+    projectId, 
+    messages, 
+    setMessages, 
+    conversationId, 
+    setConversationId,
+    inputStr,
+    setInputStr,
+    isLoading,
+    setIsLoading
+  }: { 
+    projectId?: string,
+    messages: any[],
+    setMessages: React.Dispatch<React.SetStateAction<any[]>>,
+    conversationId: string,
+    setConversationId: React.Dispatch<React.SetStateAction<string>>,
+    inputStr: string,
+    setInputStr: React.Dispatch<React.SetStateAction<string>>,
+    isLoading: boolean,
+    setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
+  }) => {
+    const { files: realFiles, loading: filesLoading } = useFiles(projectId);
+    const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+
+    const handleFileAction = async (storagePath: string | undefined, forceDownload = false) => {
+      if (!storagePath) {
+        alert("This mock file is not actually uploaded to cloud storage.");
+        return;
+      }
+      try {
+        const { data, error } = await supabase.storage
+          .from('project-files')
+          .createSignedUrl(storagePath, 60, { download: forceDownload });
+        
+        if (error) throw error;
+        
+        if (data?.signedUrl) {
+          if (forceDownload) {
+             const link = document.createElement('a');
+             link.href = data.signedUrl;
+             link.download = '';
+             document.body.appendChild(link);
+             link.click();
+             document.body.removeChild(link);
+          } else {
+             window.open(data.signedUrl, '_blank');
+          }
+        }
+      } catch(err: any) {
+        alert("Error generating access link: " + err.message);
+      }
+    };
+
+    const handleGenerateSummary = async () => {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(22);
+      doc.text('Stakeholder Project Summary', 20, 20);
+      
+      doc.setFontSize(12);
+      doc.text(`Project Instance: ${projectId || 'N/A'}`, 20, 35);
+      doc.text(`Generated At: ${new Date().toLocaleString()}`, 20, 42);
+      
+      // Conversation Section
+      doc.setFontSize(16);
+      doc.text('Latest Forensic Dialogue', 20, 60);
+      
+      let y = 70;
+      messages.slice(-15).forEach((msg) => {
+        const role = msg.role === 'user' ? 'USER' : 'AI ASSISTANT';
+        const text = `${role}: ${msg.content}`;
+        const lines = doc.splitTextToSize(text, 170);
+        
+        if (y + (lines.length * 7) > 275) {
+          doc.addPage();
+          y = 20;
+        }
+        
+        doc.setFontSize(9);
+        doc.setTextColor(msg.role === 'user' ? 100 : 0);
+        doc.text(lines, 20, y);
+        y += (lines.length * 7) + 4;
+      });
+      
+      doc.save(`Stakeholder_Summary_${projectId || 'project'}.pdf`);
+    };
+
+    const handleSendMessage = async (queryOverride?: string) => {
+      const textToQuery = queryOverride || inputStr;
+      if (!textToQuery.trim()) return;
+
+      const apiKey = import.meta.env.VITE_DIFY_API_KEY;
+      const apiUrl = import.meta.env.VITE_DIFY_URL || 'https://api.dify.ai/v1';
+
+      if (!apiKey) {
+        alert("Configura VITE_DIFY_API_KEY nel file .env.local per utilizzare il chatbot remoto.");
+        return;
+      }
+
+      setMessages(prev => [...prev, { role: 'user', content: textToQuery }]);
+      setInputStr('');
+      setIsLoading(true);
+
+      const payload: any = {
+        inputs: {
+          project_id: projectId || "default"
+        },
+        query: textToQuery,
+        response_mode: 'blocking',
+        user: 'abc-123'
+      };
+
+      console.log("[Dify-Chat] Sending payload:", payload);
+
+      if (conversationId) {
+        payload.conversation_id = conversationId;
+      }
+
+      try {
+        const res = await fetch(`${apiUrl}/chat-messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errorBody = await res.json().catch(() => ({}));
+          console.error("[Dify-Chat] Error Response:", errorBody);
+          throw new Error(`Dify API error (${res.status}): ${JSON.stringify(errorBody)}`);
+        }
+
+        const data = await res.json();
+        
+        if (data.conversation_id && !conversationId) {
+          setConversationId(data.conversation_id);
+        }
+
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer || "Risposta vuota.", isAI: true }]);
+      } catch (err: any) {
+        console.error("[Dify-Chat] Catch error:", err);
+        
+        // Se la conversazione non esiste più, resettiamo e riproviamo una volta sola
+        if (err.message.includes("Conversation Not Exists") && conversationId) {
+          console.warn("[Dify-Chat] Conversation expired, resetting...");
+          setConversationId(null);
+          // Riprova l'invio senza conversationId
+          handleSendMessage(textToQuery);
+          return;
+        }
+
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Si è verificato un errore di connessione con il provider Dify: ' + err.message, isAI: true }]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
     return (
-      <div className="flex flex-1 overflow-hidden flex-col md:flex-row pb-16 md:pb-0 relative">
-        <button onClick={() => setShowContext(!showContext)} className="md:hidden w-full flex items-center justify-center gap-2 p-2 bg-brand-card border-b border-brand-border text-xs font-bold text-brand-text-muted bg-brand-bg shrink-0 z-20">
-          {showContext ? "Hide Context" : "View Context"} <span className={cn("transition-transform", showContext ? "rotate-90" : "rotate-0")}>›</span>
-        </button>
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row pb-16 md:pb-0 relative h-[calc(100vh-140px)] min-h-[600px]">
 
-        <div className={cn(
-          "md:w-72 border-r border-brand-border p-4 flex flex-col gap-6 bg-brand-bg md:flex z-10 shrink-0 overflow-y-auto",
-          showContext ? "absolute inset-0 top-[37px] pb-16 h-auto" : "hidden"
-        )}>
+        <div className="w-full md:w-80 border-r border-brand-border p-4 flex flex-col gap-6 bg-brand-bg z-10 shrink-0 overflow-y-auto">
           <div>
           <h3 className="text-[10px] font-bold text-brand-text-muted uppercase mb-4">Forensic Context</h3>
           <div className="space-y-2">
@@ -1116,39 +1626,42 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
         <div className="flex-1 overflow-y-auto">
           <h3 className="text-[10px] font-bold text-brand-text-muted uppercase mb-4">Recent Evidence</h3>
           <div className="space-y-3">
-            {[
-              { type: 'pdf', name: 'VDD_v1.2.0.pdf', desc: 'VERIFICATION DESIGN' },
-              { type: 'doc', name: 'Test_Report_March.docx', desc: 'SYSTEM TEST RESULTS' },
-              { type: 'email', name: 'Re: Napoli Threshold', desc: 'ELENA ZHAO (LEAD QA)' },
-              { type: 'db', name: 'Legacy_Schema_v4.sql', desc: 'SQL EVIDENCE' }
-            ].map((doc, i) => (
-              <div
-                key={i}
-                onClick={() => {
-                  if (doc.name.includes('VDD')) {
-                    const btn = document.getElementById('vdd-download-btn');
-                    if (btn) btn.click();
-                  } else {
-                    alert(`Opening ${doc.name} for review...`);
-                  }
-                }}
-                className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-1 hover:border-brand-accent transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-2">
-                  {doc.type === 'pdf' ? <FileText className="w-4 h-4 text-brand-error" /> :
-                    doc.type === 'doc' ? <FileText className="w-4 h-4 text-brand-accent" /> :
-                      doc.type === 'email' ? <MessageSquare className="w-4 h-4 text-brand-warning" /> :
-                        <Database className="w-4 h-4 text-brand-success" />}
-                  <span className="text-xs font-bold truncate flex-1">{doc.name}</span>
-                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
-                </div>
-                <p className="text-[8px] font-bold text-brand-text-muted uppercase">{doc.desc}</p>
+            {filesLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-16 bg-brand-card/50 border border-brand-border rounded-lg animate-pulse" />
+                ))}
               </div>
-            ))}
+            ) : realFiles.length === 0 ? (
+              <p className="text-[10px] text-brand-text-muted italic text-center py-4 bg-brand-card/20 rounded-lg border border-dashed border-brand-border/50">
+                No telemetry files indexed yet.
+              </p>
+            ) : (
+              realFiles.slice(0, 6).map((doc, i) => (
+                <div
+                  key={i}
+                  onClick={() => handleFileAction(doc.storage_path, false)}
+                  className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-1 hover:border-brand-accent transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2">
+                    {doc.type === 'PDF' ? <FileText className="w-4 h-4 text-brand-error" /> :
+                      doc.type === 'XLSX' || doc.type === 'CSV' ? <TableIcon className="w-4 h-4 text-brand-success" /> :
+                        doc.type === 'IMAGE' ? <Image className="w-4 h-4 text-brand-accent" /> :
+                          <Database className="w-4 h-4 text-brand-warning" />}
+                    <span className="text-xs font-bold truncate flex-1">{doc.name}</span>
+                    <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                  </div>
+                  <p className="text-[8px] font-bold text-brand-text-muted uppercase tracking-widest">{doc.category}</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        <button className="w-full py-3 px-4 bg-brand-accent text-white rounded-lg font-bold flex items-center justify-center gap-3 shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-all active:scale-[0.98]">
+        <button 
+          onClick={handleGenerateSummary}
+          className="w-full py-3 px-4 bg-brand-accent text-white rounded-lg font-bold flex items-center justify-center gap-3 shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-all active:scale-[0.98]"
+        >
           <Download className="w-5 h-5 shrink-0" />
           <span className="text-sm leading-tight text-center">
             Generate Stakeholder Summary
@@ -1163,12 +1676,9 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
               <ShieldCheck className="text-brand-accent w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm">Insight Chat - SSMS Project</h3>
+              <h3 className="font-bold text-sm">Insight Chat - Dify Integrated</h3>
               <div className="flex gap-2 text-[8px] font-bold">
-                <span className="flex items-center gap-1 text-brand-success">● REQUIREMENTS</span>
-                <span className="flex items-center gap-1 text-brand-success">● TESTS</span>
-                <span className="flex items-center gap-1 text-brand-warning">● VDD</span>
-                <span className="flex items-center gap-1 text-brand-accent">● EMAILS</span>
+                <span className="flex items-center gap-1 text-brand-success">● API ONLINE</span>
               </div>
             </div>
           </div>
@@ -1177,73 +1687,62 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
           </span>
         </div>
 
-        <div className="flex-1 p-6 overflow-y-auto space-y-8">
+        <div className="flex-1 p-6 overflow-y-auto space-y-8 scroll-smooth custom-scrollbar" id="chat-messages-container">
           <div className="flex justify-center">
             <span className="text-[10px] font-bold text-brand-text-muted bg-brand-card border border-brand-border px-4 py-1 rounded-full uppercase tracking-widest">
-              Mission-critical industrial dashboard — Forensic Analysis Mode Active
+              Connesso all'intelligenza artificiale remota. Scrivi per iniziare...
             </span>
           </div>
 
           {messages.map((msg, i) => (
-            <div key={i} className={cn("flex gap-4", msg.role === 'user' ? "justify-end" : "justify-start")}>
+            <motion.div 
+              key={i} 
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.3, delay: i * 0.05 }}
+              className={cn("flex gap-4", msg.role === 'user' ? "justify-end" : "justify-start")}
+            >
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-lg bg-brand-accent flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-brand-accent flex items-center justify-center shrink-0 shadow-lg shadow-brand-accent/20">
                   <ShieldCheck className="text-white w-5 h-5" />
                 </div>
               )}
               <div className={cn(
-                "max-w-2xl p-4 rounded-2xl space-y-4",
-                msg.role === 'user' ? "bg-brand-accent text-white" : "bg-brand-card border border-brand-border"
+                "max-w-[85%] p-4 rounded-2xl space-y-2 shadow-xl",
+                msg.role === 'user' 
+                  ? "bg-brand-accent text-white rounded-tr-none shadow-brand-accent/10" 
+                  : "bg-brand-card border border-brand-border rounded-tl-none shadow-black/20"
               )}>
-                {msg.isAI && (
-                  <div className="flex items-center gap-2 text-brand-error mb-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Summary: Critical Safety Risk</span>
-                  </div>
-                )}
-                <p className="text-sm leading-relaxed">{msg.content}</p>
-
-                {msg.isAI && (
-                  <div className="space-y-4 mt-4">
-                    <div className="bg-brand-bg/50 border border-brand-border rounded-xl p-4 space-y-3">
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">
-                        <Search className="w-3 h-3" /> Evidence Retrieval
-                      </div>
-                      <p className="text-xs text-brand-text-muted">
-                        While Test <span className="text-brand-success font-bold">T-105</span> is marked as <span className="text-brand-success font-bold uppercase">Pass</span> in <span className="underline">VDD v1.2.0</span>, an email from <span className="font-bold">Elena Zhao (Lead QA)</span> on 12/03 identifies threshold instability in the Napoli environment.
-                      </p>
-                      <div className="flex gap-2">
-                        <button className="flex items-center gap-2 px-3 py-1.5 bg-brand-warning/10 text-brand-warning border border-brand-warning/20 rounded text-[10px] font-bold">
-                          <MessageSquare className="w-3 h-3" /> Open Source Email
-                        </button>
-                        <button className="flex items-center gap-2 px-3 py-1.5 bg-brand-accent/10 text-brand-accent border border-brand-accent/20 rounded text-[10px] font-bold">
-                          <FileText className="w-3 h-3" /> View VDD Section 4.2
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 className="w-4 h-4 text-brand-accent shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">Recommendation</p>
-                        <p className="text-xs">Hold promotion for <span className="italic font-bold">Napoli station</span> until the threshold logic is re-validated against the legacy database schema.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <div className="text-sm leading-relaxed markdown-content">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
               </div>
               {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-lg bg-brand-border flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-brand-border flex items-center justify-center shrink-0 shadow-lg">
                   <User className="text-white w-5 h-5" />
                 </div>
               )}
-            </div>
+            </motion.div>
           ))}
+
+          {isLoading && (
+            <div className="flex gap-4 justify-start">
+              <div className="w-8 h-8 rounded-lg bg-brand-accent flex items-center justify-center shrink-0">
+                <ShieldCheck className="text-white w-5 h-5" />
+              </div>
+              <div className="max-w-2xl p-4 rounded-2xl bg-brand-card border border-brand-border flex items-center gap-2">
+                 <RefreshCw className="w-4 h-4 animate-spin text-brand-accent" />
+                 <span className="text-sm text-brand-text-muted">Elaborazione in corso...</span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
         <div className="p-6 space-y-4">
           <div className="flex gap-2">
-            {['Summarize last client email', 'Check VDD consistency', 'Show traceability gaps'].map((chip) => (
-              <button key={chip} className="px-4 py-1.5 bg-brand-card border border-brand-border rounded-full text-[10px] font-bold text-brand-text-muted hover:text-white hover:border-brand-text-muted transition-colors">
+            {['Sintetizza progetto', 'Mostra criticità', 'Avvia test automatici'].map((chip) => (
+              <button key={chip} onClick={() => handleSendMessage(chip)} className="px-4 py-1.5 bg-brand-card border border-brand-border rounded-full text-[10px] font-bold text-brand-text-muted hover:text-white hover:border-brand-accent transition-colors">
                 {chip}
               </button>
             ))}
@@ -1254,28 +1753,26 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
             </div>
             <input
               type="text"
-              placeholder="Query SSMS project instance..."
-              className="w-full bg-brand-card border border-brand-border rounded-xl pl-12 pr-24 py-4 focus:outline-none focus:border-brand-accent"
+              value={inputStr}
+              onChange={(e) => setInputStr(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Query remotamente via Dify..."
+              className="w-full bg-brand-card/80 backdrop-blur-sm border border-brand-border rounded-2xl pl-12 pr-24 py-4 focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/50 transition-all shadow-inner"
+              disabled={isLoading}
             />
             <div className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 md:gap-3">
-              <span className="hidden sm:block text-[10px] font-bold text-brand-text-muted">CMD + K</span>
-              <button className="p-1.5 md:p-2 bg-brand-accent rounded-lg text-white">
+              <span className="hidden sm:block text-[10px] font-bold text-brand-text-muted">↵ Invio</span>
+              <button 
+                onClick={() => handleSendMessage()}
+                disabled={isLoading || !inputStr.trim()}
+                className="p-1.5 md:p-2 bg-brand-accent rounded-lg text-white hover:bg-brand-accent/80 transition-colors disabled:opacity-50"
+              >
                 <Send className="w-4 h-4" />
               </button>
             </div>
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between px-2 gap-2">
-            <p className="text-[8px] font-bold text-brand-text-muted uppercase text-center md:text-left">Source: Hitachi Evidence Retrieval Engine v4.2.0</p>
-            <div className="flex items-center justify-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="w-3 h-3 accent-brand-accent" />
-                <span className="text-[8px] font-bold text-brand-text-muted uppercase">Deep Search</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-3 h-3 accent-brand-accent" />
-                <span className="text-[8px] font-bold text-brand-text-muted uppercase">Citing Required</span>
-              </label>
-            </div>
+            <p className="text-[8px] font-bold text-brand-text-muted uppercase text-center md:text-left">Dify Core Retrieval Engine v4.2.0 - {conversationId || 'New Session'}</p>
           </div>
         </div>
       </div>
@@ -1283,7 +1780,61 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
   );
 };
 
-const VDDLibrary = () => {
+const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPackageClick?: (v: string) => void }) => {
+  const { requirements: vddData, loading } = useRequirements(projectId);
+  const { anomalies, loading: anomaliesLoading } = useAnomalies(projectId);
+  const [selectedVersions, setSelectedVersions] = useState<string[]>(['Baseline']);
+
+  useEffect(() => {
+    if (vddData.length > 0) {
+      if (selectedVersions.length === 1 && selectedVersions[0] === 'Baseline') {
+        const baselines = vddData.filter(r => r.isBaseline).map(r => r.packageVersion);
+        if (baselines.length > 0) {
+          setSelectedVersions(Array.from(new Set(baselines)));
+        }
+      }
+    }
+  }, [vddData]);
+
+  const allVersions = Array.from(new Set(vddData.map(r => r.packageVersion)));
+  
+  // Show all selected versions joined by a separator
+  const displayVersion = selectedVersions.length > 0 
+    ? [...selectedVersions].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).join(' / ') 
+    : 'N/A';
+ 
+  const filteredRequirements = vddData.filter(r => selectedVersions.includes(r.packageVersion));
+
+  const toggleVersion = (ver: string) => {
+    setSelectedVersions(prev => 
+      prev.includes(ver) ? prev.filter(v => v !== ver) : [...prev, ver]
+    );
+  };
+
+  // 1. Chunking Requisiti (15 per pagina)
+  const reqChunks = [];
+  const reqChunkSize = 15;
+  for (let i = 0; i < filteredRequirements.length; i += reqChunkSize) {
+    reqChunks.push(filteredRequirements.slice(i, i + reqChunkSize));
+  }
+  if (reqChunks.length === 0) reqChunks.push([]);
+
+  // 2. Chunking Anomalie (8 per pagina) - Escludendo quelle nascoste e filtrando solo per i requisiti selezionati
+  const visibleAnomalies = anomalies.filter(a => !a.is_hidden);
+  const filteredAnomalies = visibleAnomalies.filter(a => 
+    filteredRequirements.some(r => a.message.includes(r.id) || (a.source && a.source.includes(r.id)))
+  );
+
+  const anomalyChunks = [];
+  const anomalyChunkSize = 8;
+  for (let i = 0; i < filteredAnomalies.length; i += anomalyChunkSize) {
+    anomalyChunks.push(filteredAnomalies.slice(i, i + anomalyChunkSize));
+  }
+  if (anomalyChunks.length === 0) anomalyChunks.push([]);
+
+  // 3. Calcolo Pagine Totali
+  const totalPages = reqChunks.length + anomalyChunks.length + 1; // +1 per Analytics finale
+
   const handleDownload = async () => {
     const btn = document.getElementById('vdd-download-btn') as HTMLButtonElement | null;
     if (!btn) return;
@@ -1292,15 +1843,15 @@ const VDDLibrary = () => {
     btn.innerHTML = '<span class="animate-spin mr-2">◌</span> Preparing Pages...';
 
     try {
-      const page1 = document.getElementById('vdd-page-1');
-      const page2 = document.getElementById('vdd-page-2');
-      if (!page1 || !page2) throw new Error('Could not find all report pages.');
+      const pageElements = document.querySelectorAll('[id^="vdd-page-"]');
+      if (pageElements.length === 0) throw new Error('No report pages found.');
 
       const opt = { quality: 1, backgroundColor: '#ffffff' };
-      const [img1, img2] = await Promise.all([
-        toPng(page1, opt),
-        toPng(page2, opt)
-      ]);
+      btn.innerHTML = `<span class="animate-spin mr-2">◌</span> Capturing ${pageElements.length} Pages...`;
+      
+      const images = await Promise.all(
+        Array.from(pageElements).map(el => toPng(el as HTMLElement, opt))
+      );
 
       btn.innerHTML = '<span class="animate-pulse mr-2">●</span> Encoding Document...';
       const pdf = new jsPDF({
@@ -1310,11 +1861,12 @@ const VDDLibrary = () => {
         hotfixes: ["px_scaling"]
       });
 
-      pdf.addImage(img1, 'PNG', 0, 0, 800, 1130);
-      pdf.addPage();
-      pdf.addImage(img2, 'PNG', 0, 0, 800, 1130);
+      images.forEach((img, index) => {
+        if (index > 0) pdf.addPage();
+        pdf.addImage(img, 'PNG', 0, 0, 800, 1130);
+      });
 
-      pdf.save('VDD_v1.2.0.pdf');
+      pdf.save(`VDD_${projectId || 'project'}_${selectedVersions.join('-')}.pdf`);
 
       btn.innerHTML = '<span class="mr-2">✓</span> Download Complete';
       setTimeout(() => {
@@ -1332,136 +1884,249 @@ const VDDLibrary = () => {
 
   return (
     <div className="p-4 sm:p-6 flex flex-col items-center gap-4 sm:gap-6 overflow-x-auto overflow-y-auto h-full pb-24 w-full">
+
+
+      <div className="w-[800px] flex items-center justify-between bg-brand-card/50 border border-brand-border/50 p-4 rounded-xl shrink-0 backdrop-blur-md">
+        <div>
+          <h3 className="font-bold text-sm flex items-center gap-2"><Map className="w-4 h-4 text-brand-accent"/> Requirements Packages</h3>
+          <p className="text-[10px] text-brand-text-muted mt-1 uppercase tracking-widest">Select versions to aggregate into the VDD</p>
+        </div>
+        <div className="flex gap-2 flex-wrap justify-end">
+          {allVersions.map((v) => {
+             const isBaseline = vddData.find(r => r.packageVersion === v)?.isBaseline;
+             const isSelected = selectedVersions.includes(v);
+             return (
+               <button 
+                 key={v}
+                 onClick={() => toggleVersion(v)}
+                 className={cn(
+                   "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 shadow-sm",
+                   isSelected ? "bg-brand-accent/20 border-brand-accent text-white" : "bg-brand-bg/60 border-brand-border text-brand-text-muted hover:border-brand-text-muted",
+                   isBaseline && !isSelected && "border-white/20"
+                 )}
+               >
+                 {isBaseline && <ShieldCheck className="w-3 h-3" />}
+                 {v}
+               </button>
+             );
+          })}
+        </div>
+      </div>
+      
       <div className="w-[800px] flex justify-end shrink-0">
         <button
           onClick={handleDownload}
           id="vdd-download-btn"
-          className="flex items-center gap-2 px-4 py-2 bg-brand-accent text-white rounded-lg font-bold shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-all active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 bg-brand-card border border-brand-border/50 text-brand-text-muted rounded-lg font-bold hover:text-white transition-all active:scale-95"
         >
           <Download className="w-4 h-4" />
-          Download VDD (PDF)
+          Export VDD Report
         </button>
       </div>
 
-      <div id="vdd-page-1" className="w-[800px] h-[1130px] bg-white text-slate-900 rounded-none shadow-2xl p-12 space-y-12 relative shrink-0">
-        <div className="absolute top-12 right-12 border-4 border-brand-warning text-brand-warning font-black px-4 py-2 rotate-12 text-center leading-tight">
-          AI-VALIDATED<br />READY FOR REVIEW<br />● ● ●
-        </div>
-
-        <div className="space-y-2">
-          <h2 className="text-4xl font-bold">Version Description Document (VDD)</h2>
-          <p className="text-lg text-slate-500">Hitachi Rail Smart Systems Management System (SSMS)</p>
-          <div className="flex justify-between items-end border-b-2 border-slate-900 pb-4">
-            <div className="h-1 bg-slate-900 w-full"></div>
-            <div className="pl-8 text-right shrink-0">
-              <p className="text-[10px] font-bold uppercase text-slate-400">Release ID</p>
-              <p className="text-2xl font-bold">v1.2.0</p>
-            </div>
-          </div>
-        </div>
-
-        <section className="space-y-6">
-          <h3 className="text-xl font-bold bg-slate-100 px-4 py-2 border-l-4 border-slate-900">1. MODULES & VERSIONS</h3>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-[10px] font-bold text-slate-400 uppercase border-b">
-                <th className="py-2">Service Name</th>
-                <th className="py-2">Version</th>
-                <th className="py-2">Git Hash</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {[
-                { name: 'Core Signaling Engine', ver: 'v2.4.1-prod', hash: '8f2a1c9e' },
-                { name: 'Naples Node Telemetry', ver: 'v1.1.2-beta', hash: '3d4f5g6h' },
-                { name: 'Diagnostic Gateway', ver: 'v3.0.0-stable', hash: '9k8l7m6n' }
-              ].map((row, i) => (
-                <tr key={i} className="text-sm">
-                  <td className="py-3 font-medium">{row.name}</td>
-                  <td className="py-3 font-mono">{row.ver}</td>
-                  <td className="py-3 font-mono text-brand-accent">{row.hash}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
-        <section className="space-y-6">
-          <h3 className="text-xl font-bold bg-slate-100 px-4 py-2 border-l-4 border-slate-900">2. REQUIREMENTS COVERAGE</h3>
-          <div className="space-y-2">
-            {[
-              { id: 'REQ-01', desc: 'Fail-safe protocol initiation', status: 'COMPLIANT' },
-              { id: 'REQ-05', desc: 'Real-time latency dashboard', status: 'GAP ALERT', error: true },
-              { id: 'REQ-12', desc: 'Data encryption at rest (SIL-4)', status: 'COMPLIANT' }
-            ].map((row, i) => (
-              <div key={i} className={cn(
-                "flex items-center justify-between p-3 rounded",
-                row.error ? "bg-red-50" : "bg-white"
-              )}>
-                <div className="flex gap-8">
-                  <span className="font-bold w-16">{row.id}</span>
-                  <span className="text-slate-600">{row.desc}</span>
+      {/* --- SEZIONE 1: REQUISITI (DINAMICA) --- */}
+      {reqChunks.map((chunk, idx) => {
+        const pageNum = idx + 1;
+        return (
+          <div key={`req-page-${pageNum}`} id={`vdd-page-${pageNum}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0">
+            {pageNum === 1 && (
+              <div className="mb-10">
+                <div className="absolute top-12 right-12 border-4 border-brand-warning text-brand-warning font-black px-4 py-2 rotate-12 text-center leading-tight">
+                  OFFICIAL REPORT<br />AI-VERIFIED<br />● ● ●
                 </div>
-                <span className={cn(
-                  "text-[10px] font-bold px-2 py-0.5 rounded",
-                  row.error ? "bg-brand-error text-white" : "text-brand-success"
-                )}>
-                  {row.status}
-                </span>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center">
+                    <Train className="text-white w-8 h-8" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black uppercase tracking-tighter">Version Description Document</h2>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em]">Hitachi Rail Industrial Intelligence</p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-end border-b-2 border-slate-900 pb-4">
+                  <div>
+                    <p className="text-sm text-slate-500 font-medium">Project ID: {projectId || 'N/A'}</p>
+                    <p className="text-[9px] font-black text-brand-error uppercase tracking-widest mt-1">⚠️ Human Approval Required for Mission Baseline</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Document Status</p>
+                    <p className="text-[12px] font-black text-brand-success uppercase mt-1">Verified {displayVersion}</p>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        </section>
-      </div>
+            )}
 
-      <div id="vdd-page-2" className="w-[800px] h-[1130px] bg-white text-slate-900 rounded-none shadow-2xl p-12 space-y-12 relative shrink-0">
-        <section className="space-y-6">
-          <h3 className="text-xl font-bold bg-slate-100 px-4 py-2 border-l-4 border-slate-900">3. TEST SUMMARY</h3>
-          <div className="grid grid-cols-2 gap-12">
-            <div className="space-y-4">
-              <div className="h-32 flex items-end gap-2">
-                <div className="w-4 bg-brand-success h-full"></div>
-                <div className="w-4 bg-brand-success h-[80%]"></div>
-                <div className="w-4 bg-brand-success h-[95%]"></div>
-                <div className="w-4 bg-brand-error h-[15%]"></div>
+            <section className="space-y-6">
+              <div className="flex items-center justify-between bg-slate-100 px-4 py-3 border-l-4 border-slate-900">
+                <h3 className="text-lg font-black uppercase tracking-widest">
+                  {pageNum === 1 ? "1. Requirements Traceability Matrix" : "1. Requirements Matrix (Cont.)"}
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Page {String(pageNum).padStart(2, '0')} of {String(totalPages).padStart(2, '0')}</span>
               </div>
-              <p className="text-[10px] font-bold text-slate-400">Test Execution Pass Rate: 98.2%</p>
-            </div>
-            <div className="space-y-4 text-sm">
-              <div className="flex justify-between border-b pb-1">
-                <span>Unit Tests</span>
-                <span className="font-bold text-brand-success uppercase">Passed</span>
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr className="font-bold text-slate-400 uppercase">
+                      <th className="px-4 py-3">ID</th>
+                      <th className="px-4 py-3">Package</th>
+                      <th className="px-4 py-3">Description</th>
+                      <th className="px-4 py-3">Outcome</th>
+                      <th className="px-4 py-3">Compliance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {chunk.map((row, i) => {
+                      const reqAnomalies = anomalies.filter((a: any) => !a.is_hidden && (a.message.includes(row.id) || (a.source && a.source.includes(row.id))));
+                      return (
+                        <tr key={i} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-bold text-slate-900">{row.id}</td>
+                          <td className="px-4 py-3 font-medium text-slate-500">{row.packageVersion}</td>
+                          <td className="px-4 py-3 text-slate-600 truncate max-w-[200px]">{row.description}</td>
+                          <td className="px-4 py-3">
+                            <span className={cn(
+                              "font-bold",
+                              row.outcome === 'PASS' ? "text-brand-success" : 
+                              row.outcome === 'FAIL' ? "text-brand-error" : "text-brand-warning"
+                            )}>● {row.outcome}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {reqAnomalies.length === 0 ? (
+                              <span className="text-brand-success font-bold text-[9px] uppercase">Compliant</span>
+                            ) : (
+                              <span className="text-brand-error font-bold text-[9px] uppercase">Anomaly Found</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <div className="flex justify-between border-b pb-1">
-                <span>Integration (T-02)</span>
-                <span className="font-bold text-brand-warning uppercase italic">Re-test Pending</span>
-              </div>
-              <div className="flex justify-between border-b pb-1">
-                <span>Safety Validation</span>
-                <span className="font-bold text-brand-success uppercase">Passed</span>
+            </section>
+
+            {/* Footer fisso con sfondo bianco per coprire eventuale overflow */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-white flex flex-col justify-end p-12 z-20">
+              <div className="flex justify-between items-center text-[8px] font-bold text-slate-300 uppercase tracking-[0.5em] border-t border-slate-100 pt-6">
+                <span>Hitachi Rail Security Protocol</span>
+                <span>Confidential - Internal Use Only</span>
+                <span>Page {String(pageNum).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}</span>
               </div>
             </div>
           </div>
-        </section>
+        );
+      })}
 
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
-          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI Verification Checklist</h4>
-          <div className="space-y-3">
-            {[
-              { text: 'Safety Verified: SIL-related requirements PASS.', status: 'success' },
-              { text: 'Compliance Checked: No source contradictions found.', status: 'success' },
-              { text: 'Hybrid Sync OK (Conditional): Configuration drift in Napoli Station requires manual patch.', status: 'warning' },
-              { text: 'Traceability Intact: 100% requirements linked.', status: 'success' }
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-3 text-sm">
-                {item.status === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 text-brand-success shrink-0 mt-0.5" />
+      {/* --- SEZIONE 2: ANOMALIE (DINAMICA) --- */}
+      {anomalyChunks.map((chunk, idx) => {
+        const pageNum = reqChunks.length + idx + 1;
+        return (
+          <div key={`anomaly-page-${pageNum}`} id={`vdd-page-${pageNum}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0">
+            <section className="space-y-6">
+              <div className="flex items-center justify-between bg-slate-100 px-4 py-3 border-l-4 border-slate-900">
+                <h3 className="text-lg font-black uppercase tracking-widest">
+                  {idx === 0 ? "2. Detailed Anomalies Report" : "2. Anomalies Report (Cont.)"}
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Page {String(pageNum).padStart(2, '0')} of {String(totalPages).padStart(2, '0')}</span>
+              </div>
+              <div className="space-y-4">
+                {chunk.length === 0 ? (
+                  <p className="text-sm text-slate-500 italic py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    No forensic anomalies detected.
+                  </p>
                 ) : (
-                  <AlertTriangle className="w-4 h-4 text-brand-warning shrink-0 mt-0.5" />
+                  chunk.map((anomaly, i) => (
+                    <div key={i} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-4">
+                      <div className={cn(
+                        "mt-1 w-2 h-2 rounded-full shrink-0",
+                        anomaly.severity === 'HIGH' ? "bg-brand-error shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                        anomaly.severity === 'MEDIUM' ? "bg-brand-warning" : "bg-brand-accent"
+                      )} />
+                      <div className="flex-1 space-y-1">
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs font-black uppercase tracking-widest text-slate-400">Reference: {anomaly.file_name}</p>
+                          <span className={cn(
+                            "text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest",
+                            anomaly.severity === 'HIGH' ? "bg-brand-error text-white" :
+                            anomaly.severity === 'MEDIUM' ? "bg-brand-warning text-white" : "bg-brand-accent text-white"
+                          )}>{anomaly.severity}</span>
+                        </div>
+                        <p className="text-sm font-bold text-slate-800 leading-tight">{anomaly.message}</p>
+                      </div>
+                    </div>
+                  ))
                 )}
-                <span className="text-slate-700">{item.text}</span>
               </div>
-            ))}
+            </section>
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-white flex flex-col justify-end p-12 z-20">
+              <div className="flex justify-between items-center text-[8px] font-bold text-slate-300 uppercase tracking-[0.5em] border-t border-slate-100 pt-6">
+                <span>Hitachi Rail Security Protocol</span>
+                <span>Anomalies Forensic Analysis</span>
+                <span>Page {String(pageNum).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* --- SEZIONE 3: ANALYTICS (PAGINA FINALE) --- */}
+      <div id={`vdd-page-${totalPages}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0">
+        <section className="space-y-10">
+          <div className="flex items-center justify-between bg-slate-100 px-4 py-3 border-l-4 border-slate-900">
+            <h3 className="text-lg font-black uppercase tracking-widest flex items-center gap-2">
+              3. Analytics & Global Metrics 
+              <span className="text-[10px] text-slate-400 font-bold normal-case">({displayVersion})</span>
+            </h3>
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Page {String(totalPages).padStart(2, '0')} of {String(totalPages).padStart(2, '0')}</span>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-12">
+            <div className="space-y-4">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-2">Traceability Distribution</h4>
+              <div className="h-64 w-full flex items-end justify-around border border-slate-100 rounded-2xl bg-slate-50/50 p-12">
+                 <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 bg-brand-success rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'PASS').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
+                    <span className="text-[10px] font-black uppercase text-slate-400">Pass</span>
+                 </div>
+                 <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 bg-brand-error rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'FAIL').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
+                    <span className="text-[10px] font-black uppercase text-slate-400">Fail</span>
+                 </div>
+                 <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 bg-brand-warning rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'PENDING').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
+                    <span className="text-[10px] font-black uppercase text-slate-400">Pending</span>
+                 </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-12">
+              <div className="space-y-6 max-w-md mx-auto w-full">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-2 text-center">Final Mission Statistics</h4>
+                <div className="space-y-6 bg-slate-50 p-8 rounded-3xl border border-slate-100">
+                  <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-tighter">Total Requirements</span>
+                    <span className="text-2xl font-black text-slate-900">{filteredRequirements.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-tighter">Global Compliance</span>
+                    <span className="text-2xl font-black text-brand-success">
+                      {filteredRequirements.length > 0 ? Math.round((filteredRequirements.filter(r => r.outcome === 'PASS').length / filteredRequirements.length) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2">
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-tighter">Active Forensic Risks</span>
+                    <span className="text-2xl font-black text-brand-error">{filteredAnomalies.length}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-white flex flex-col justify-end p-12 z-20">
+          <div className="flex justify-between items-center text-[8px] font-bold text-slate-300 uppercase tracking-[0.5em] border-t border-slate-100 pt-6">
+            <span>Hitachi Rail Security Protocol</span>
+            <span>Mission Analytics Dashboard ({displayVersion})</span>
+            <span>Page {String(totalPages).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}</span>
           </div>
         </div>
       </div>
@@ -1469,17 +2134,279 @@ const VDDLibrary = () => {
   );
 };
 
-import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import { supabase } from './lib/supabase';
+const MissionCalendar = ({ projectId }: { projectId?: string }) => {
+  const { requirements } = useRequirements(projectId);
+  const { anomalies } = useAnomalies(projectId);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedReq, setSelectedReq] = useState<any>(null);
+
+  // Calendar Helpers
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const startDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const month = currentDate.getMonth();
+  const year = currentDate.getFullYear();
+  const monthName = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(currentDate);
+
+  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const goToToday = () => setCurrentDate(new Date());
+
+  const days = [];
+  const totalDays = daysInMonth(year, month);
+  const firstDay = startDayOfMonth(year, month);
+
+  // Pre-month padding
+  for (let i = 0; i < firstDay; i++) {
+    days.push({ day: null });
+  }
+
+  // Current month days
+  for (let i = 1; i <= totalDays; i++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    const dayReqs = requirements.filter(r => r.deadline === dateStr);
+    days.push({ day: i, date: dateStr, reqs: dayReqs });
+  }
+
+  const weekDays = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
+
+  return (
+    <div className="flex flex-col h-full bg-[#0a0a0a] text-white p-6 space-y-6">
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={goToToday}
+            className="px-4 py-1.5 bg-[#1e1e1e] border border-white/10 rounded-full text-xs font-bold hover:bg-white/5 transition-all"
+          >
+            Oggi
+          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={prevMonth} className="p-1 hover:bg-white/5 rounded-full"><ChevronLeft className="w-5 h-5" /></button>
+            <button onClick={nextMonth} className="p-1 hover:bg-white/5 rounded-full"><ChevronRight className="w-5 h-5" /></button>
+          </div>
+          <h2 className="text-xl font-bold capitalize">{monthName}</h2>
+        </div>
+        
+
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="flex-1 flex flex-col border border-white/5 rounded-xl overflow-hidden bg-[#121212]">
+        {/* Week Days */}
+        <div className="grid grid-cols-7 border-b border-white/5">
+          {weekDays.map(wd => (
+            <div key={wd} className="py-2 text-center text-[10px] font-black text-white/40 tracking-widest">{wd}</div>
+          ))}
+        </div>
+
+        {/* Days Grid */}
+        <div className="flex-1 grid grid-cols-7 grid-rows-5">
+          {days.map((d, i) => (
+            <div 
+              key={i} 
+              className={cn(
+                "border-r border-b border-white/5 p-2 space-y-1 relative group overflow-hidden",
+                d.day === null ? "bg-[#0c0c0c]" : "hover:bg-white/[0.02]"
+              )}
+            >
+              {d.day && (
+                <div className="flex justify-center">
+                   <span className={cn(
+                     "text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full transition-colors",
+                     d.date === new Date().toISOString().split('T')[0] ? "bg-brand-accent text-white" : "text-white/60"
+                   )}>
+                     {d.day}
+                   </span>
+                </div>
+              )}
+              
+              <div className="space-y-1 overflow-y-auto max-h-[80%] hide-scrollbar">
+                {d.reqs?.map(r => (
+                  <button
+                    key={r.db_id}
+                    onClick={() => setSelectedReq(r)}
+                    className={cn(
+                      "w-full text-left px-2 py-1 rounded text-[9px] font-bold truncate transition-transform active:scale-95",
+                      r.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success border border-brand-success/30" :
+                      r.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error border border-brand-error/30" :
+                      "bg-[#3d311d] text-brand-warning border border-brand-warning/30"
+                    )}
+                  >
+                    {r.id}: {r.description}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Requirement Detail Modal */}
+      <AnimatePresence>
+        {selectedReq && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-[#1a1a1a] border border-white/10 rounded-3xl p-8 max-w-xl w-full shadow-2xl space-y-6 relative"
+            >
+              <button 
+                onClick={() => setSelectedReq(null)}
+                className="absolute top-6 right-6 p-2 hover:bg-white/5 rounded-full"
+              >
+                <XCircle className="w-6 h-6 text-white/40" />
+              </button>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "w-3 h-3 rounded-full",
+                    selectedReq.outcome === 'PASS' ? "bg-brand-success" :
+                    selectedReq.outcome === 'FAIL' ? "bg-brand-error" : "bg-brand-warning"
+                  )} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Requirement Detail</span>
+                </div>
+                <h3 className="text-2xl font-black">{selectedReq.id}</h3>
+              </div>
+
+              <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
+                <p className="text-sm text-white/80 leading-relaxed">{selectedReq.description}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-white/5 border border-white/5 rounded-2xl space-y-1">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Status</p>
+                  <p className={cn(
+                    "text-lg font-black",
+                    selectedReq.outcome === 'PASS' ? "text-brand-success" :
+                    selectedReq.outcome === 'FAIL' ? "text-brand-error" : "text-brand-warning"
+                  )}>{selectedReq.outcome}</p>
+                </div>
+                <div className="p-4 bg-white/5 border border-white/5 rounded-2xl space-y-1">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Deadline</p>
+                  <p className="text-lg font-black text-white">{selectedReq.deadline}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-widest text-white/40 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-brand-warning" /> Forensic Anomalies
+                </h4>
+                <div className="space-y-2">
+                  {anomalies.filter(a => !a.is_hidden && (a.message.includes(selectedReq.id) || a.source?.includes(selectedReq.id))).length > 0 ? (
+                    anomalies.filter(a => !a.is_hidden && (a.message.includes(selectedReq.id) || a.source?.includes(selectedReq.id))).map((a, idx) => (
+                      <div key={idx} className="p-3 bg-brand-error/10 border border-brand-error/20 rounded-xl flex items-start gap-3">
+                        <AlertCircle className="w-4 h-4 text-brand-error shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-bold text-brand-error">{a.severity} SEVERITY</p>
+                          <p className="text-xs text-white/70">{a.message}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 bg-brand-success/10 border border-brand-success/20 rounded-xl flex items-center gap-3">
+                      <CheckCircle2 className="w-4 h-4 text-brand-success" />
+                      <p className="text-xs font-bold text-brand-success uppercase tracking-tighter">No forensic anomalies detected for this node.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 // --- Main App ---
+
+
+const PackageDetailsModal = ({ projectId, packageVersion, onClose }: { projectId?: string, packageVersion: string, onClose: () => void }) => {
+  const { requirements: realRequirements, loading } = useRequirements(projectId);
+
+  const packageReqs = realRequirements.filter(r => r.packageVersion === packageVersion);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-2xl w-full shadow-2xl relative max-h-[80vh] flex flex-col"
+      >
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer"
+        >
+          <XCircle className="w-5 h-5" />
+        </button>
+        <div className="mb-6">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <Files className="w-5 h-5 text-brand-accent" /> Package Overview
+          </h3>
+          <p className="text-sm font-bold text-brand-accent mt-1 uppercase tracking-widest">{packageVersion}</p>
+        </div>
+
+        <div className="overflow-y-auto flex-1 space-y-3 pr-2 hide-scrollbar">
+          {loading ? (
+             <p className="text-brand-text-muted text-sm tracking-widest uppercase">Loading requirements...</p>
+          ) : packageReqs.length === 0 ? (
+             <p className="text-brand-text-muted text-sm tracking-widest uppercase">No requirements found for this package.</p>
+          ) : (
+            packageReqs.map(req => (
+              <div key={req.id} className="bg-brand-bg/50 border border-brand-border/50 p-4 rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div>
+                  <p className="font-bold text-white mb-1">{req.id}</p>
+                  <p className="text-xs text-brand-text-muted">{req.description}</p>
+                </div>
+                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0">
+                  <span className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-bold w-max",
+                    req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" : 
+                    req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" : 
+                    "bg-brand-warning/20 text-brand-warning"
+                  )}>
+                    ● {req.outcome}
+                  </span>
+                  <span className="text-[10px] font-mono text-brand-text-muted text-right">Test: {req.linkedTest}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 const ProjectLayout = () => {
   const [activeTab, setActiveTab] = useState('consistency');
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const [selectedPackageView, setSelectedPackageView] = useState<string | null>(null);
 
   const { project, loading } = useProject(projectId);
+
+  // Chat state lifted to persist across tab changes
+  const [chatMessages, setChatMessages] = useState<any[]>([
+    { role: 'assistant', content: 'Inizializzazione completata. Sono l\'assistente Forensic Analysis per questo progetto. Come posso aiutarti?', isAI: true }
+  ]);
+  const [chatConversationId, setChatConversationId] = useState('');
+  const [chatInputStr, setChatInputStr] = useState('');
+  const [chatIsLoading, setChatIsLoading] = useState(false);
+
+  // Reset chat when project changes
+  useEffect(() => {
+    setChatMessages([
+      { role: 'assistant', content: 'Inizializzazione completata. Sono l\'assistente Forensic Analysis per questo progetto. Come posso aiutarti?', isAI: true }
+    ]);
+    setChatConversationId('');
+    setChatInputStr('');
+    setChatIsLoading(false);
+  }, [projectId]);
 
   if (loading) return (
     <div className="h-screen bg-brand-bg flex items-center justify-center">
@@ -1496,6 +2423,8 @@ const ProjectLayout = () => {
 
   const getTitle = () => {
     switch (activeTab) {
+      case 'analytics': return `Project Analytics - ${project.name}`;
+      case 'calendar': return `Mission Calendar - ${project.name}`;
       case 'consistency': return `Consistency Map - ${project.name}`;
       case 'dataset': return `Project Dataset - ${project.name}`;
       case 'chat': return `Insight Chat - ${project.name}`;
@@ -1527,13 +2456,38 @@ const ProjectLayout = () => {
               transition={{ duration: 0.3 }}
               className="h-full"
             >
-              {activeTab === 'consistency' && <ConsistencyMap projectId={projectId} />}
+              {activeTab === 'analytics' && <ProjectAnalytics projectId={projectId} />}
+              {activeTab === 'calendar' && <MissionCalendar projectId={projectId} />}
+              {activeTab === 'consistency' && <ConsistencyMap projectId={projectId} onPackageClick={setSelectedPackageView} />}
               {activeTab === 'dataset' && <ProjectDataset projectId={projectId} />}
-              {activeTab === 'chat' && <InsightChat />}
-              {activeTab === 'vdd' && <VDDLibrary />}
+              {activeTab === 'chat' && (
+                <InsightChat 
+                  projectId={projectId} 
+                  messages={chatMessages} 
+                  setMessages={setChatMessages}
+                  conversationId={chatConversationId}
+                  setConversationId={setChatConversationId}
+                  inputStr={chatInputStr}
+                  setInputStr={setChatInputStr}
+                  isLoading={chatIsLoading}
+                  setIsLoading={setChatIsLoading}
+                />
+              )}
+              {activeTab === 'vdd' && <VDDLibrary projectId={projectId} onPackageClick={setSelectedPackageView} />}
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Modal Package Details - Portato allo scope di ProjectLayout per funzionare ovunque */}
+        <AnimatePresence>
+          {selectedPackageView && (
+            <PackageDetailsModal 
+              projectId={projectId} 
+              packageVersion={selectedPackageView} 
+              onClose={() => setSelectedPackageView(null)} 
+            />
+          )}
+        </AnimatePresence>
 
         <footer className="hidden md:flex h-10 shrink-0 border-t border-brand-border bg-brand-card items-center justify-between px-6 text-[10px] font-bold text-brand-text-muted z-10 w-full">
           <div className="flex items-center gap-4">
