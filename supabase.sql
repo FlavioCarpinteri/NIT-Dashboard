@@ -35,6 +35,8 @@ CREATE TABLE public.requirements (
     req_id TEXT NOT NULL,
     description TEXT NOT NULL,
     target_vdd TEXT,
+    package_version TEXT DEFAULT 'Baseline',
+    is_baseline BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -156,6 +158,24 @@ USING (
     )
 );
 
+-- INSERTS PER FILES E STORAGE
+
+-- STORAGE BUCKET POLICIES (permettiamo agli utenti loggati di fare insert)
+CREATE POLICY "Allow authenticated inserts" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'project-files');
+CREATE POLICY "Allow authenticated selects" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'project-files');
+
+-- FILES: chiunque loggato può registrare un file
+CREATE POLICY "Allow file creation" 
+ON public.files FOR INSERT 
+WITH CHECK (auth.uid() IS NOT NULL);
+
+-- FILE_PROJECTS: puoi associarlo solo se appartieni a quel progetto
+CREATE POLICY "Allow file_projects creation" 
+ON public.file_projects FOR INSERT 
+WITH CHECK (
+    project_id IN (SELECT project_id FROM public.project_members WHERE user_id = auth.uid())
+);
+
 -- ==========================================
 -- 4. FUNZIONE AGGIORNAMENTO TIMESTAMP
 -- ==========================================
@@ -189,17 +209,17 @@ DECLARE
     req_id_1 UUID;
     req_id_2 UUID;
 BEGIN
-    -- Requirement 1
-    INSERT INTO public.requirements (project_id, req_id, description, target_vdd)
-    VALUES ('HR-001', 'REQ-01', 'Auto-Gate Response Latency', 'v1.2.0 (Stable)')
+    -- Requirement 1 (Baseline)
+    INSERT INTO public.requirements (project_id, req_id, description, target_vdd, package_version, is_baseline)
+    VALUES ('HR-001', 'REQ-01', 'Auto-Gate Response Latency', 'v1.2.0 (Stable)', 'Baseline', true)
     RETURNING id INTO req_id_1;
 
     INSERT INTO public.tests (requirement_id, test_id, outcome, compliance)
     VALUES (req_id_1, 'TST-102', 'PASS', true);
 
-    -- Requirement 2
-    INSERT INTO public.requirements (project_id, req_id, description, target_vdd)
-    VALUES ('HR-001', 'REQ-02', 'Threshold Stability: Multi-modal', 'v1.2.0 (Stable)')
+    -- Requirement 2 (Nuova Versione)
+    INSERT INTO public.requirements (project_id, req_id, description, target_vdd, package_version, is_baseline)
+    VALUES ('HR-001', 'REQ-02', 'Threshold Stability: Multi-modal', 'v1.2.0 (Stable)', 'v1.1 Patch', false)
     RETURNING id INTO req_id_2;
 
     INSERT INTO public.tests (requirement_id, test_id, outcome, compliance)
@@ -210,3 +230,38 @@ END $$;
 -- INSERT INTO public.project_members (project_id, user_id, role) 
 -- VALUES ('HR-001', 'IL_TUO_USER_ID_QUI', 'Admin');
 
+-- ==========================================
+-- 6. RAG / CHUNKING SUPPORT
+-- ==========================================
+
+-- Abilita l'estensione vector per gli embeddings (richiede privilegi superuser o specifico su Supabase)
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE public.document_chunks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    file_id UUID REFERENCES public.files(id) ON DELETE CASCADE,
+    idx INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    metadata JSONB,
+    embedding VECTOR(768), -- Google text-embedding-004 usa 768 dimensioni di default
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.document_chunks ENABLE ROW LEVEL SECURITY;
+
+-- Policy: puoi vedere i chunk se hai accesso al progetto a cui il file appartiene
+CREATE POLICY "View accessible document chunks" 
+ON public.document_chunks FOR SELECT 
+USING (
+    EXISTS (
+        SELECT 1 FROM public.file_projects
+        JOIN public.project_members ON project_members.project_id = file_projects.project_id
+        WHERE file_projects.file_id = document_chunks.file_id
+        AND project_members.user_id = auth.uid()
+    )
+);
+
+-- Chiunque può inserire chunk (di solito gestito lato server/hook, ma qui permettiamo insert se loggato)
+CREATE POLICY "Allow document chunks insertion" 
+ON public.document_chunks FOR INSERT 
+WITH CHECK (auth.uid() IS NOT NULL);
