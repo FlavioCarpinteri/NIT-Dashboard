@@ -45,10 +45,59 @@ export function useProjects() {
 
   useEffect(() => {
     async function fetchProjects() {
-      const { data: projectsData, error } = await supabase.from('projects').select('*');
-      if (!error && projectsData) {
-        setProjects(projectsData.map(p => ({ ...p, hasAccess: true, team: [] })));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setProjects([]);
+        setLoading(false);
+        return;
       }
+
+      const { data: projectsData, error } = await supabase.from('projects').select('*');
+      if (error || !projectsData) {
+        setProjects([]);
+        setLoading(false);
+        return;
+      }
+
+      // Leggi le membership dell'utente corrente
+      const { data: myMemberships } = await supabase
+        .from('project_members')
+        .select('project_id, role')
+        .eq('user_id', session.user.id);
+
+      const myProjectMap = new Map(myMemberships?.map(m => [m.project_id, m.role]) || []);
+
+      // Leggi tutti i membri per i progetti a cui l'utente ha visibilità
+      const { data: allMembers } = await supabase
+        .from('project_members')
+        .select('project_id, role, user_id, profiles:user_id (id, email, name)');
+
+      const mapped = projectsData.map(p => {
+        const hasAccess = myProjectMap.has(p.id);
+        const team = (allMembers || [])
+          .filter(m => m.project_id === p.id)
+          .map(m => ({
+            id: m.user_id,
+            name: (m.profiles as any)?.name || 'Unknown Operator',
+            email: (m.profiles as any)?.email || 'unknown@hitachirail.com',
+            role: m.role
+          }));
+
+        return {
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          status: p.status as 'BLOCKED' | 'AT RISK' | 'HEALTHY' || 'HEALTHY',
+          safety: p.safety as 'healthy' | 'warning' | 'critical' || 'healthy',
+          hybrid: p.hybrid as 'healthy' | 'warning' | 'critical' || 'healthy',
+          compliance: p.compliance as 'healthy' | 'warning' | 'critical' || 'healthy',
+          phase: p.phase || 'Planning',
+          hasAccess,
+          team
+        };
+      });
+
+      setProjects(mapped);
       setLoading(false);
     }
     fetchProjects();
@@ -65,14 +114,199 @@ export function useProject(id: string | undefined) {
   useEffect(() => {
     if (!id) { setLoading(false); return; }
     async function fetchProject() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setProject(null);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.from('projects').select('*').eq('id', id).single();
-      if (!error && data) setProject({ ...data, hasAccess: true, team: [] });
+      if (error || !data) {
+        setProject(null);
+        setLoading(false);
+        return;
+      }
+
+      // Verifica se l'utente appartiene al progetto
+      const { data: membership } = await supabase
+        .from('project_members')
+        .select('role')
+        .eq('project_id', id)
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      const hasAccess = !!membership;
+
+      // Carica tutti i membri del progetto
+      const { data: allMembers } = await supabase
+        .from('project_members')
+        .select('role, user_id, profiles:user_id (id, email, name)')
+        .eq('project_id', id);
+
+      const team = (allMembers || []).map(m => ({
+        id: m.user_id,
+        name: (m.profiles as any)?.name || 'Unknown Operator',
+        email: (m.profiles as any)?.email || 'unknown@hitachirail.com',
+        role: m.role
+      }));
+
+      setProject({
+        id: data.id,
+        name: data.name,
+        description: data.description || '',
+        status: data.status as 'BLOCKED' | 'AT RISK' | 'HEALTHY' || 'HEALTHY',
+        safety: data.safety as 'healthy' | 'warning' | 'critical' || 'healthy',
+        hybrid: data.hybrid as 'healthy' | 'warning' | 'critical' || 'healthy',
+        compliance: data.compliance as 'healthy' | 'warning' | 'critical' || 'healthy',
+        phase: data.phase || 'Planning',
+        hasAccess,
+        team
+      });
       setLoading(false);
     }
     fetchProject();
   }, [id, syncTick]);
 
   return { project, loading };
+}
+
+export function useSystemUsers() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const syncTick = useGlobalSyncTick();
+
+  useEffect(() => {
+    async function fetchUsers() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('name', { ascending: true });
+      if (!error && data) {
+        setUsers(data);
+      }
+      setLoading(false);
+    }
+    fetchUsers();
+  }, [syncTick]);
+
+  return { users, loading };
+}
+
+export async function addProjectMember(projectId: string, email: string, role: string) {
+  // Cerca il profilo dell'utente per email
+  const { data: profile, error: pError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (pError || !profile) {
+    throw new Error("Impossibile trovare un operatore con questa e-mail nei profili di sicurezza.");
+  }
+
+  const { error } = await supabase
+    .from('project_members')
+    .insert([{
+      project_id: projectId,
+      user_id: profile.id,
+      role: role
+    }]);
+
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error("L'utente fa già parte di questo progetto.");
+    }
+    throw error;
+  }
+  triggerDatabaseScan();
+}
+
+export async function removeProjectMember(projectId: string, userId: string) {
+  const { error } = await supabase
+    .from('project_members')
+    .delete()
+    .eq('project_id', projectId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  triggerDatabaseScan();
+}
+
+export async function updateProjectMemberRole(projectId: string, userId: string, newRole: string) {
+  const { error } = await supabase
+    .from('project_members')
+    .update({ role: newRole })
+    .eq('project_id', projectId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  triggerDatabaseScan();
+}
+
+export async function requestProjectAccess(projectId: string) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) throw new Error("Operatore non autenticato.");
+
+  const { error } = await supabase
+    .from('project_members')
+    .insert([{
+      project_id: projectId,
+      user_id: session.user.id,
+      role: 'Viewer'
+    }]);
+
+  if (error) throw error;
+  triggerDatabaseScan();
+}
+
+export async function deleteProjectFile(fileId: string, storagePath: string) {
+  // 1. Ottieni il nome del file e il project_id prima di cancellare
+  const { data: fileData } = await supabase
+    .from('files')
+    .select('name')
+    .eq('id', fileId)
+    .maybeSingle();
+
+  const { data: fpData } = await supabase
+    .from('file_projects')
+    .select('project_id')
+    .eq('file_id', fileId)
+    .maybeSingle();
+
+  const fileName = fileData?.name;
+  const projectId = fpData?.project_id;
+
+  // 2. Rimuovi dal bucket storage di Supabase se presente
+  if (storagePath) {
+    const { error: storageError } = await supabase.storage
+      .from('project-files')
+      .remove([storagePath]);
+    if (storageError) {
+      console.warn("[Storage] Warning: failed to delete file from storage bucket:", storageError);
+    }
+  }
+
+  // 3. Elimina le anomalie associate al file e a questo specifico progetto
+  if (fileName && projectId) {
+    const { error: anomalyError } = await supabase
+      .from('document_anomalies')
+      .delete()
+      .eq('file_name', fileName)
+      .eq('project_id', projectId);
+    if (anomalyError) {
+      console.warn("[Database] Warning: failed to delete file anomalies:", anomalyError);
+    }
+  }
+
+  // 4. Elimina la riga dalla tabella files (cancellerà a cascata file_projects e document_chunks)
+  const { error } = await supabase
+    .from('files')
+    .delete()
+    .eq('id', fileId);
+
+  if (error) throw error;
+  triggerDatabaseScan();
 }
 
 export function useRequirements(projectId: string | undefined) {
@@ -135,20 +369,43 @@ export function useFiles(projectId: string | undefined) {
   useEffect(() => {
     if (!projectId) { setLoading(false); return; }
     async function fetchFiles() {
-      const { data, error } = await supabase.from('file_projects').select('files (*)').eq('project_id', projectId);
-      if (!error && data) {
-        const mapped = data.map(fp => (fp as any).files).filter(Boolean).map((file: any) => ({
-          id: file.id,
-          name: file.name,
-          type: file.type,
-          size: `${file.size_mb} MB`,
-          rawSizeMb: file.size_mb || 0,
-          date: new Date(file.created_at).toISOString().split('T')[0],
-          status: file.status,
-          category: file.category,
-          storage_path: file.storage_path
-        }));
-        setFiles(mapped.length > 0 ? mapped : mockFiles);
+      // 1. Carica i file associati al progetto
+      const { data: fileProjectsData, error: filesError } = await supabase
+        .from('file_projects')
+        .select('files (*)')
+        .eq('project_id', projectId);
+
+      // 2. Carica le anomalie associate a questo progetto
+      const { data: anomaliesData, error: anomaliesError } = await supabase
+        .from('document_anomalies')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (!filesError && fileProjectsData) {
+        const anomalies = anomaliesData || [];
+        const mapped = fileProjectsData.map(fp => (fp as any).files).filter(Boolean).map((file: any) => {
+          // Calcola lo stato in base alle anomalie attive (non nascoste)
+          const fileAnomalies = anomalies.filter(a => a.file_name === file.name);
+          const hasActiveAnomalies = fileAnomalies.some(a => !a.is_hidden);
+          
+          let displayStatus = file.status;
+          if (file.status !== 'Indexing...') {
+            displayStatus = hasActiveAnomalies ? 'Flagged' : 'Analyzed';
+          }
+
+          return {
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            size: `${file.size_mb} MB`,
+            rawSizeMb: file.size_mb || 0,
+            date: new Date(file.created_at).toISOString().split('T')[0],
+            status: displayStatus,
+            category: file.category,
+            storage_path: file.storage_path
+          };
+        });
+        setFiles(mapped);
       }
       setLoading(false);
     }
@@ -339,7 +596,6 @@ export async function uploadProjectFile(projectId: string, file: File, extractRe
   }));
 
   await insertChunksInBatches(finalChunks);
-  await supabase.from('files').update({ status: 'Processed' }).eq('id', fileData.id);
   
   // 5. Opzionale: Estrazione Requisiti AI (Solo se richiesto)
   try {
@@ -357,6 +613,16 @@ export async function uploadProjectFile(projectId: string, file: File, extractRe
   } catch (e) {
     console.error("[AI] Document validation failed, but continuing upload:", e);
   }
+
+  // 6. Aggiorna lo stato reale basandosi sulle inesattezze trovate
+  const { data: fileAnomalies } = await supabase
+    .from('document_anomalies')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('file_name', file.name);
+
+  const finalStatus = fileAnomalies && fileAnomalies.length > 0 ? 'Flagged' : 'Analyzed';
+  await supabase.from('files').update({ status: finalStatus }).eq('id', fileData.id);
 
   triggerDatabaseScan();
   return fileData.id;

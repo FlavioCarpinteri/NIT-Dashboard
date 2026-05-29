@@ -46,7 +46,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { projects as mockProjects, requirements as mockRequirements, stations, Project, Requirement, Station } from './mockData';
-import { useProjects, useProject, useRequirements, useFiles, useAnomalies, triggerDatabaseScan, uploadProjectFile, importRequirementsFromDify } from './hooks/useSupabase';
+import { useProjects, useProject, useRequirements, useFiles, useAnomalies, triggerDatabaseScan, uploadProjectFile, importRequirementsFromDify, addProjectMember, removeProjectMember, updateProjectMemberRole, requestProjectAccess, useSystemUsers, deleteProjectFile } from './hooks/useSupabase';
 import {
   BarChart,
   Bar,
@@ -72,6 +72,7 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
     { id: 'dataset', icon: Files, label: 'Dataset' },
     { id: 'chat', icon: MessageSquare, label: 'Insight Chat' },
     { id: 'vdd', icon: FileText, label: 'VDD Library' },
+    { id: 'team', icon: User, label: 'Project Team' },
   ];
 
   return (
@@ -205,6 +206,22 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setUserProfile(data);
+          });
+      }
+    });
+  }, []);
 
   // Supabase Data
   const { projects: dbProjects, loading } = useProjects();
@@ -224,34 +241,41 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
     p.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const requestAccess = (project: Project) => {
-    // Notifications for access requests are disabled for now
-    setAccessRequestModal(null);
+  const requestAccess = async (project: Project) => {
+    try {
+      await requestProjectAccess(project.id);
+      alert(`Access request sent! You have been added as a Viewer for ${project.name}.`);
+      setAccessRequestModal(null);
+    } catch (err: any) {
+      alert("Error sending request: " + err.message);
+    }
   };
 
-  const removeUser = (projectId: string, userId: string) => {
-    setLocalProjects(localProjects.map(p => {
-      if (p.id === projectId) {
-        return {
-          ...p,
-          team: p.team.filter(m => m.id !== userId),
-          hasAccess: userId === 'u1' ? false : p.hasAccess
-        };
-      }
-      return p;
-    }));
-    setManageAccessModal(prev => {
-      if (prev && prev.id === projectId) {
-        return {
-          ...prev,
-          team: prev.team.filter(m => m.id !== userId),
-          hasAccess: userId === 'u1' ? false : prev.hasAccess
-        };
-      }
-      return prev;
-    });
-    if (userId === 'u1') {
-      setManageAccessModal(null);
+  const removeUser = async (projectId: string, userId: string) => {
+    if (!confirm("Are you sure you want to revoke access for this operator?")) return;
+    try {
+      await removeProjectMember(projectId, userId);
+      
+      setLocalProjects(localProjects.map(p => {
+        if (p.id === projectId) {
+          return {
+            ...p,
+            team: p.team.filter(m => m.id !== userId)
+          };
+        }
+        return p;
+      }));
+      setManageAccessModal(prev => {
+        if (prev && prev.id === projectId) {
+          return {
+            ...prev,
+            team: prev.team.filter(m => m.id !== userId)
+          };
+        }
+        return prev;
+      });
+    } catch (err: any) {
+      alert("Error revoking access: " + err.message);
     }
   };
 
@@ -355,8 +379,8 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
 
           <div className="relative flex items-center gap-2 md:gap-3 pl-2 md:pl-4 border-l border-brand-border/50">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold">H. Evidence</p>
-              <p className="text-[10px] text-brand-text-muted uppercase">Admin</p>
+              <p className="text-xs font-bold">{userProfile?.name || 'Loading...'}</p>
+              <p className="text-[10px] text-brand-text-muted uppercase">{userProfile?.role || 'Viewer'}</p>
             </div>
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -374,8 +398,8 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                   className="absolute right-0 top-full mt-2 w-56 bg-brand-card border border-brand-border/50 rounded-xl shadow-xl overflow-hidden z-50"
                 >
                   <div className="p-4 border-b border-brand-border/50">
-                    <p className="text-sm font-bold text-white">h_evidence_admin</p>
-                    <p className="text-[10px] text-brand-text-muted uppercase">Global Operations</p>
+                    <p className="text-sm font-bold text-white truncate">{userProfile?.name || 'Operator'}</p>
+                    <p className="text-[10px] text-brand-text-muted uppercase truncate">{userProfile?.email || 'Global Operations'}</p>
                   </div>
                   <div className="p-2 flex flex-col">
                     <button
@@ -869,7 +893,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   );
 };
 
-const ConsistencyMap = ({ projectId, onPackageClick }: { projectId?: string, onPackageClick?: (v: string) => void }) => {
+const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: string, onPackageClick?: (v: string) => void, isAdmin: boolean }) => {
   const { requirements: dataToUse, loading, updateOutcome } = useRequirements(projectId);
   const { anomalies, loading: anomaliesLoading, toggleAnomalyVisibility } = useAnomalies(projectId);
   const [selectedReq, setSelectedReq] = useState<any>(null);
@@ -902,38 +926,42 @@ const ConsistencyMap = ({ projectId, onPackageClick }: { projectId?: string, onP
                 </span>
               </div>
 
-              <input
-                type="file"
-                id="req-import-input-matrix"
-                className="hidden"
-                accept=".pdf,.txt,.xlsx,.xls,.csv"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file || !projectId) return;
-                  const btn = document.getElementById('req-import-btn-matrix') as HTMLButtonElement;
-                  const original = btn.innerHTML;
-                  btn.disabled = true;
-                  btn.innerHTML = '<span class="animate-spin mr-1">◌</span> Processing...';
-                  try {
-                    // Chiamata alla pipeline unificata: Dataset + Chunks + AI Requirements
-                    await uploadProjectFile(projectId, file, true);
-                    alert(`Success! File indexed in Dataset and requirements extracted.`);
-                  } catch (err: any) {
-                    alert("Error: " + (err.message || String(err)));
-                  } finally {
-                    btn.innerHTML = original;
-                    btn.disabled = false;
-                    e.target.value = '';
-                  }
-                } } />
-              <button
-                id="req-import-btn-matrix"
-                onClick={() => document.getElementById('req-import-input-matrix')?.click()}
-                className="flex items-center gap-1.5 px-3 py-1 bg-brand-accent/10 border border-brand-accent/30 text-brand-accent rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-brand-accent hover:text-white transition-all active:scale-95 shadow-sm"
-              >
-                <FilePlus className="w-3 h-3" />
-                Import Reqs
-              </button>
+              {isAdmin && (
+                <>
+                  <input
+                    type="file"
+                    id="req-import-input-matrix"
+                    className="hidden"
+                    accept=".pdf,.txt,.xlsx,.xls,.csv"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !projectId) return;
+                      const btn = document.getElementById('req-import-btn-matrix') as HTMLButtonElement;
+                      const original = btn.innerHTML;
+                      btn.disabled = true;
+                      btn.innerHTML = '<span class="animate-spin mr-1">◌</span> Processing...';
+                      try {
+                        // Chiamata alla pipeline unificata: Dataset + Chunks + AI Requirements
+                        await uploadProjectFile(projectId, file, true);
+                        alert(`Success! File indexed in Dataset and requirements extracted.`);
+                      } catch (err: any) {
+                        alert("Error: " + (err.message || String(err)));
+                      } finally {
+                        btn.innerHTML = original;
+                        btn.disabled = false;
+                        e.target.value = '';
+                      }
+                    } } />
+                  <button
+                    id="req-import-btn-matrix"
+                    onClick={() => document.getElementById('req-import-input-matrix')?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-brand-accent/10 border border-brand-accent/30 text-brand-accent rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-brand-accent hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+                  >
+                    <FilePlus className="w-3 h-3" />
+                    Import Reqs
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <div className="overflow-auto max-h-[550px] custom-scrollbar">
@@ -1065,12 +1093,12 @@ const ConsistencyMap = ({ projectId, onPackageClick }: { projectId?: string, onP
           {anomaliesLoading ? (
             <div className="flex flex-col items-center justify-center h-40 space-y-4">
               <RefreshCw className="w-8 h-8 animate-spin text-brand-accent opacity-50" />
-              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">AI Audit in corso...</p>
+              <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">AI Audit in progress...</p>
             </div>
           ) : anomalies.length === 0 ? (
             <div className="bg-brand-bg/50 rounded-xl p-8 border border-brand-border border-dashed flex flex-col items-center text-center space-y-3">
               <ShieldCheck className="w-8 h-8 text-brand-success opacity-50" />
-              <p className="text-xs font-bold text-brand-text-muted uppercase tracking-widest">Nessuna inesattezza rilevata dai sistemi AI</p>
+              <p className="text-xs font-bold text-brand-text-muted uppercase tracking-widest">No inaccuracies detected by AI systems</p>
             </div>
           ) : (
             anomalies.filter(a => showHidden ? a.is_hidden : !a.is_hidden).map((anomaly, i) => (
@@ -1100,7 +1128,7 @@ const ConsistencyMap = ({ projectId, onPackageClick }: { projectId?: string, onP
                 <h4 className="font-bold text-sm leading-tight">{anomaly.message}</h4>
 
                 <div className="bg-brand-card border border-brand-border rounded-lg p-3 space-y-1">
-                  <span className="text-[8px] font-bold text-brand-text-muted uppercase tracking-widest">Contesto rilevato:</span>
+                  <span className="text-[8px] font-bold text-brand-text-muted uppercase tracking-widest">Detected context:</span>
                   <p className="text-xs text-brand-text-muted italic leading-relaxed">
                     "{anomaly.source}"
                   </p>
@@ -1225,7 +1253,7 @@ const ConsistencyMap = ({ projectId, onPackageClick }: { projectId?: string, onP
   );
 };
 
-const ProjectDataset = ({ projectId }: { projectId?: string }) => {
+const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: boolean }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { files: dataset, loading } = useFiles(projectId);
   const [isUploading, setIsUploading] = useState(false);
@@ -1244,6 +1272,19 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileDelete = async (fileId: string, storagePath: string) => {
+    if (!confirm("Are you sure you want to permanently delete this file and all associated inaccuracies?")) return;
+    try {
+      setIsUploading(true);
+      await deleteProjectFile(fileId, storagePath);
+    } catch (err: any) {
+      console.error(err);
+      alert("Error deleting file: " + err.message);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -1325,20 +1366,28 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
               className="bg-brand-card/50 border border-brand-border/50 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-accent w-full sm:w-64 md:w-80 transition-all focus:md:w-96"
             />
           </div>
-          <input 
-            type="file" 
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="px-4 shrink-0 sm:px-6 py-2.5 bg-brand-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-95 shadow-lg shadow-brand-accent/20 disabled:opacity-50"
-          >
-            {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} 
-            {isUploading ? 'Uploading...' : 'Import Data'}
-          </button>
+          {isAdmin ? (
+            <>
+              <input 
+                type="file" 
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="px-4 shrink-0 sm:px-6 py-2.5 bg-brand-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-95 shadow-lg shadow-brand-accent/20 disabled:opacity-50 cursor-pointer"
+              >
+                {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} 
+                {isUploading ? 'Uploading...' : 'Import Data'}
+              </button>
+            </>
+          ) : (
+            <span className="text-[10px] font-bold text-brand-text-muted uppercase border border-brand-border px-3 py-2.5 rounded-xl bg-brand-card/30 flex items-center gap-1.5 shrink-0 select-none">
+              <Lock className="w-3.5 h-3.5 text-brand-error shrink-0" /> Upload Disabled (Admin Only)
+            </span>
+          )}
         </div>
       </div>
 
@@ -1399,6 +1448,15 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
                       >
                         <Download className="w-4 h-4" />
                       </button>
+                      {isAdmin && (
+                        <button 
+                          onClick={() => handleFileDelete(file.id, file.storage_path)}
+                          className="p-1.5 hover:bg-brand-error/20 rounded-lg text-brand-error hover:text-white transition-all cursor-pointer"
+                          title="Delete file"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1541,7 +1599,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
       const apiUrl = import.meta.env.VITE_DIFY_URL || 'https://api.dify.ai/v1';
 
       if (!apiKey) {
-        alert("Configura VITE_DIFY_API_KEY nel file .env.local per utilizzare il chatbot remoto.");
+        alert("Configure VITE_DIFY_API_KEY in .env.local to use the remote chatbot.");
         return;
       }
 
@@ -1586,20 +1644,20 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
           setConversationId(data.conversation_id);
         }
 
-        setMessages(prev => [...prev, { role: 'assistant', content: data.answer || "Risposta vuota.", isAI: true }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer || "Empty response.", isAI: true }]);
       } catch (err: any) {
         console.error("[Dify-Chat] Catch error:", err);
         
-        // Se la conversazione non esiste più, resettiamo e riproviamo una volta sola
+        // If conversation no longer exists, reset and retry once
         if (err.message.includes("Conversation Not Exists") && conversationId) {
           console.warn("[Dify-Chat] Conversation expired, resetting...");
           setConversationId(null);
-          // Riprova l'invio senza conversationId
+          // Retry sending without conversationId
           handleSendMessage(textToQuery);
           return;
         }
 
-        setMessages(prev => [...prev, { role: 'assistant', content: 'Si è verificato un errore di connessione con il provider Dify: ' + err.message, isAI: true }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: 'A connection error occurred with the Dify provider: ' + err.message, isAI: true }]);
       } finally {
         setIsLoading(false);
       }
@@ -1690,7 +1748,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
         <div className="flex-1 p-6 overflow-y-auto space-y-8 scroll-smooth custom-scrollbar" id="chat-messages-container">
           <div className="flex justify-center">
             <span className="text-[10px] font-bold text-brand-text-muted bg-brand-card border border-brand-border px-4 py-1 rounded-full uppercase tracking-widest">
-              Connesso all'intelligenza artificiale remota. Scrivi per iniziare...
+              Connected to remote artificial intelligence. Write to start...
             </span>
           </div>
 
@@ -1732,7 +1790,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
               </div>
               <div className="max-w-2xl p-4 rounded-2xl bg-brand-card border border-brand-border flex items-center gap-2">
                  <RefreshCw className="w-4 h-4 animate-spin text-brand-accent" />
-                 <span className="text-sm text-brand-text-muted">Elaborazione in corso...</span>
+                 <span className="text-sm text-brand-text-muted">Processing in progress...</span>
               </div>
             </div>
           )}
@@ -1741,7 +1799,7 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
 
         <div className="p-6 space-y-4">
           <div className="flex gap-2">
-            {['Sintetizza progetto', 'Mostra criticità', 'Avvia test automatici'].map((chip) => (
+            {['Summarize project', 'Show critical issues', 'Start automated tests'].map((chip) => (
               <button key={chip} onClick={() => handleSendMessage(chip)} className="px-4 py-1.5 bg-brand-card border border-brand-border rounded-full text-[10px] font-bold text-brand-text-muted hover:text-white hover:border-brand-accent transition-colors">
                 {chip}
               </button>
@@ -1756,12 +1814,12 @@ const ProjectDataset = ({ projectId }: { projectId?: string }) => {
               value={inputStr}
               onChange={(e) => setInputStr(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Query remotamente via Dify..."
+              placeholder="Query remotely via Dify..."
               className="w-full bg-brand-card/80 backdrop-blur-sm border border-brand-border rounded-2xl pl-12 pr-24 py-4 focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/50 transition-all shadow-inner"
               disabled={isLoading}
             />
             <div className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 md:gap-3">
-              <span className="hidden sm:block text-[10px] font-bold text-brand-text-muted">↵ Invio</span>
+              <span className="hidden sm:block text-[10px] font-bold text-brand-text-muted">↵ Send</span>
               <button 
                 onClick={() => handleSendMessage()}
                 disabled={isLoading || !inputStr.trim()}
@@ -2146,7 +2204,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
 
   const month = currentDate.getMonth();
   const year = currentDate.getFullYear();
-  const monthName = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(currentDate);
+  const monthName = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentDate);
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -2168,7 +2226,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
     days.push({ day: i, date: dateStr, reqs: dayReqs });
   }
 
-  const weekDays = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
+  const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a] text-white p-6 space-y-6">
@@ -2179,7 +2237,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
             onClick={goToToday}
             className="px-4 py-1.5 bg-[#1e1e1e] border border-white/10 rounded-full text-xs font-bold hover:bg-white/5 transition-all"
           >
-            Oggi
+            Today
           </button>
           <div className="flex items-center gap-1">
             <button onClick={prevMonth} className="p-1 hover:bg-white/5 rounded-full"><ChevronLeft className="w-5 h-5" /></button>
@@ -2321,6 +2379,375 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
   );
 };
 
+const ProjectTeam = ({ projectId }: { projectId?: string }) => {
+  const { project, loading: projectLoading } = useProject(projectId);
+  const { users: systemUsers, loading: usersLoading } = useSystemUsers();
+  
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('Viewer');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setCurrentUser(user);
+      }
+    });
+  }, []);
+
+  if (projectLoading || usersLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 space-y-4">
+        <RefreshCw className="w-8 h-8 animate-spin text-brand-accent" />
+        <p className="text-xs font-bold text-brand-text-muted uppercase tracking-widest">Loading Team...</p>
+      </div>
+    );
+  }
+
+  if (!project) return <p className="p-8 text-center text-brand-text-muted">Project not found.</p>;
+
+  // Identifica l'operatore corrente e il suo ruolo nel progetto
+  const myMemberInfo = project.team.find(m => m.id === currentUser?.id);
+  const isCurrentUserAdmin = myMemberInfo?.role === 'Admin';
+
+  // Filtra gli utenti di sistema disponibili per l'invito (non ancora nel team)
+  const availableUsers = systemUsers.filter(u => 
+    !project.team.some(m => m.email === u.email) &&
+    (u.email.toLowerCase().includes(searchQuery.toLowerCase()) || 
+     u.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim() || !projectId) return;
+
+    setActionLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      await addProjectMember(projectId, inviteEmail.trim(), inviteRole);
+      setSuccessMsg(`Operator added to team successfully!`);
+      setInviteEmail('');
+      setSearchQuery('');
+      setShowSuggestions(false);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error adding team member.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!projectId) return;
+    if (userId === currentUser?.id) {
+      if (!confirm("Are you sure you want to leave the project? You will lose immediate access.")) return;
+    } else {
+      if (!confirm("Are you sure you want to revoke access for this operator?")) return;
+    }
+
+    setActionLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      await removeProjectMember(projectId, userId);
+      setSuccessMsg("Access revoked successfully.");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error revoking access.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    if (!projectId) return;
+    setActionLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      await updateProjectMemberRole(projectId, userId, newRole);
+      setSuccessMsg("Operator role updated.");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error updating role.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const getAvatarStyle = (name: string) => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = Math.abs(hash % 360);
+    return {
+      background: `linear-gradient(135deg, hsl(${h}, 70%, 35%) 0%, hsl(${(h + 40) % 360}, 75%, 55%) 100%)`,
+      boxShadow: `0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 2px rgba(255, 255, 255, 0.1)`
+    };
+  };
+
+  return (
+    <div className="p-4 sm:p-8 space-y-8 pb-20 md:pb-8 max-w-6xl mx-auto w-full">
+      
+      {/* Header and Statistics */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-brand-card/30 border border-brand-border/50 p-6 sm:p-8 rounded-3xl backdrop-blur-xl">
+        <div className="space-y-1">
+          <p className="text-xs text-brand-accent font-mono uppercase tracking-[0.2em]">Hitachi Rail Security Gateway</p>
+          <h2 className="text-2xl sm:text-3xl font-black">Project Team Directory</h2>
+          <p className="text-xs sm:text-sm text-brand-text-muted max-w-xl">
+            Manage clearances, operational roles, and encrypted access control for this industrial instance.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-6 divide-x divide-brand-border/50">
+          <div className="text-center px-4">
+            <p className="text-4xl font-black text-white">{project.team.length}</p>
+            <p className="text-[9px] font-bold text-brand-text-muted uppercase tracking-widest mt-1">Total Members</p>
+          </div>
+          <div className="text-center px-6">
+            <p className="text-4xl font-black text-brand-accent">
+              {project.team.filter(m => m.role === 'Admin').length}
+            </p>
+            <p className="text-[9px] font-bold text-brand-text-muted uppercase tracking-widest mt-1">Administrators</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Profile Banner */}
+      <div className="bg-brand-card/20 border border-brand-border/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-2.5 h-2.5 rounded-full bg-brand-success animate-pulse" />
+          <p className="text-xs font-semibold text-slate-300">
+            Authorized Access as: <span className="font-bold text-white font-mono">{currentUser?.email}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-bold text-brand-text-muted uppercase">Role in this project:</span>
+          <span className={cn(
+            "text-[10px] font-black px-2.5 py-0.5 rounded border uppercase tracking-wider",
+            myMemberInfo?.role === 'Admin' ? "bg-brand-error/20 text-brand-error border-brand-error/30" :
+            myMemberInfo?.role === 'Lead QA' ? "bg-brand-accent/20 text-brand-accent border-brand-accent/30" :
+            myMemberInfo?.role === 'Engineer' ? "bg-brand-success/20 text-brand-success border-brand-success/30" :
+            "bg-slate-800 text-slate-400 border-slate-700"
+          )}>
+            {myMemberInfo?.role || 'Viewer'}
+          </span>
+        </div>
+      </div>
+
+      {/* Notifications */}
+      {errorMsg && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-brand-error/10 border border-brand-error/20 rounded-xl text-brand-error text-xs flex items-center gap-3 font-semibold">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          {errorMsg}
+        </motion.div>
+      )}
+
+      {successMsg && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-brand-success/10 border border-brand-success/20 rounded-xl text-brand-success text-xs flex items-center gap-3 font-semibold">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          {successMsg}
+        </motion.div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Members List Panel */}
+        <div className="lg:col-span-2 space-y-4">
+          <h3 className="text-xs font-black text-brand-accent uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+            <User className="w-4 h-4" /> Active Operations Team
+          </h3>
+
+          <div className="space-y-4">
+            {project.team.map((member, i) => (
+              <motion.div 
+                key={member.id} 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-brand-card/40 border border-brand-border/40 hover:border-brand-border/80 transition-all p-4 rounded-2xl flex items-center justify-between gap-4 group"
+              >
+                <div className="flex items-center gap-4">
+                  <div 
+                    style={getAvatarStyle(member.name)}
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-sm"
+                  >
+                    {member.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white group-hover:text-brand-accent transition-colors flex items-center gap-2">
+                      {member.name}
+                      {member.id === currentUser?.id && (
+                        <span className="text-[8px] font-bold text-brand-success bg-brand-success/10 px-1.5 py-0.2 rounded border border-brand-success/20">You</span>
+                      )}
+                    </h4>
+                    <p className="text-[11px] text-brand-text-muted font-mono">{member.email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Admin controls for updating roles */}
+                  {isCurrentUserAdmin && member.id !== currentUser?.id ? (
+                    <select
+                      value={member.role}
+                      disabled={actionLoading}
+                      onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                      className="bg-brand-bg border border-brand-border/80 rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-none focus:border-brand-accent cursor-pointer"
+                    >
+                      <option value="Admin">Admin</option>
+                      <option value="Lead QA">Lead QA</option>
+                      <option value="Engineer">Engineer</option>
+                      <option value="Viewer">Viewer</option>
+                    </select>
+                  ) : (
+                    <span className={cn(
+                      "text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider",
+                      member.role === 'Admin' ? "bg-brand-error/15 text-brand-error border-brand-error/20" :
+                      member.role === 'Lead QA' ? "bg-brand-accent/15 text-brand-accent border-brand-accent/20" :
+                      member.role === 'Engineer' ? "bg-brand-success/15 text-brand-success border-brand-success/20" :
+                      "bg-brand-card text-brand-text-muted border-brand-border"
+                    )}>
+                      {member.role}
+                    </span>
+                  )}
+
+                  {/* Revoke access button for admin or leaving the project */}
+                  {(isCurrentUserAdmin || member.id === currentUser?.id) && (
+                    <button
+                      onClick={() => handleRemoveMember(member.id)}
+                      disabled={actionLoading}
+                      className={cn(
+                        "p-2 rounded-lg transition-all",
+                        member.id === currentUser?.id 
+                          ? "text-brand-warning hover:bg-brand-warning/10" 
+                          : "text-brand-error hover:bg-brand-error/10"
+                      )}
+                      title={member.id === currentUser?.id ? "Leave Project" : "Revoke Access"}
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Add/Invite Team Member Panel (Only visible to project Admins) */}
+        <div>
+          {isCurrentUserAdmin ? (
+            <div className="bg-brand-card/50 border border-brand-border/50 rounded-3xl p-6 space-y-6 backdrop-blur-xl sticky top-24">
+              <div className="space-y-1">
+                <h3 className="font-bold text-sm flex items-center gap-2 uppercase tracking-wider text-brand-accent">
+                  <ShieldCheck className="w-4 h-4" /> Invite Operator
+                </h3>
+                <p className="text-xs text-brand-text-muted">Add an authorized operator to this project instance.</p>
+              </div>
+
+              <form onSubmit={handleAddMember} className="space-y-4">
+                <div className="space-y-1.5 relative">
+                  <label className="text-[9px] font-bold text-brand-text-muted uppercase tracking-widest">Search Operator (Email or Name)</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setInviteEmail(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      placeholder="email@hitachirail.com"
+                      required
+                      className="w-full bg-brand-bg/50 border border-brand-border rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-accent transition-all text-white font-mono"
+                    />
+                  </div>
+
+                  {/* Autocomplete suggestions */}
+                  <AnimatePresence>
+                    {showSuggestions && searchQuery.trim().length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 5 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        exit={{ opacity: 0, y: 5 }}
+                        className="absolute w-full mt-1 bg-brand-card border border-brand-border rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto"
+                      >
+                        {availableUsers.length === 0 ? (
+                          <p className="p-3 text-[10px] text-brand-text-muted italic text-center">No available users found</p>
+                        ) : (
+                          availableUsers.map(u => (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => {
+                                setInviteEmail(u.email);
+                                setSearchQuery(u.name);
+                                setShowSuggestions(false);
+                              }}
+                              className="w-full text-left p-3 hover:bg-brand-accent/10 border-b border-brand-border/30 last:border-0 transition-colors flex flex-col"
+                            >
+                              <span className="text-xs font-bold text-white">{u.name}</span>
+                              <span className="text-[10px] text-brand-text-muted font-mono">{u.email}</span>
+                            </button>
+                          ))
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-brand-text-muted uppercase tracking-widest font-bold">Operational Role</label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                    className="w-full bg-brand-bg/50 border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-accent cursor-pointer text-white font-bold"
+                  >
+                    <option value="Viewer">Viewer (Read Only)</option>
+                    <option value="Engineer">Engineer (Integrity & Detection)</option>
+                    <option value="Lead QA">Lead QA (Quality & Traceability)</option>
+                    <option value="Admin">Admin (Full Control)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={actionLoading || !inviteEmail.trim()}
+                  className="w-full py-3 bg-brand-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-[0.98] shadow-lg shadow-brand-accent/20 cursor-pointer disabled:opacity-50"
+                >
+                  {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  <span>Associate to Project</span>
+                </button>
+              </form>
+            </div>
+          ) : (
+            <div className="bg-brand-card/20 border border-brand-border/30 border-dashed rounded-3xl p-6 text-center space-y-4">
+              <div className="w-12 h-12 bg-brand-card border border-brand-border rounded-full flex items-center justify-center mx-auto text-brand-text-muted">
+                <Lock className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-sm text-slate-300">Restricted Management</h4>
+              <p className="text-xs text-brand-text-muted leading-relaxed">
+                Only operators with the <span className="font-bold text-brand-error">Admin</span> role on this project can invite new members or modify access permissions.
+              </p>
+            </div>
+          )}
+        </div>
+
+      </div>
+
+    </div>
+  );
+};
+
 // --- Main App ---
 
 
@@ -2389,6 +2816,17 @@ const ProjectLayout = () => {
   const [selectedPackageView, setSelectedPackageView] = useState<string | null>(null);
 
   const { project, loading } = useProject(projectId);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setCurrentUser(user);
+      }
+    });
+  }, []);
+
+  const isAdmin = project?.team.some(m => m.id === currentUser?.id && m.role === 'Admin') || false;
 
   // Chat state lifted to persist across tab changes
   const [chatMessages, setChatMessages] = useState<any[]>([
@@ -2429,6 +2867,7 @@ const ProjectLayout = () => {
       case 'dataset': return `Project Dataset - ${project.name}`;
       case 'chat': return `Insight Chat - ${project.name}`;
       case 'vdd': return `VDD Library - ${project.name}`;
+      case 'team': return `Project Team - ${project.name}`;
       default: return project.name;
     }
   };
@@ -2458,8 +2897,8 @@ const ProjectLayout = () => {
             >
               {activeTab === 'analytics' && <ProjectAnalytics projectId={projectId} />}
               {activeTab === 'calendar' && <MissionCalendar projectId={projectId} />}
-              {activeTab === 'consistency' && <ConsistencyMap projectId={projectId} onPackageClick={setSelectedPackageView} />}
-              {activeTab === 'dataset' && <ProjectDataset projectId={projectId} />}
+              {activeTab === 'consistency' && <ConsistencyMap projectId={projectId} onPackageClick={setSelectedPackageView} isAdmin={isAdmin} />}
+              {activeTab === 'dataset' && <ProjectDataset projectId={projectId} isAdmin={isAdmin} />}
               {activeTab === 'chat' && (
                 <InsightChat 
                   projectId={projectId} 
@@ -2474,6 +2913,7 @@ const ProjectLayout = () => {
                 />
               )}
               {activeTab === 'vdd' && <VDDLibrary projectId={projectId} onPackageClick={setSelectedPackageView} />}
+              {activeTab === 'team' && <ProjectTeam projectId={projectId} />}
             </motion.div>
           </AnimatePresence>
         </div>
