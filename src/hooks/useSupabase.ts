@@ -665,11 +665,16 @@ Testo: ${block}`;
       })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      const jsonMatch = data.answer.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        try {
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      console.error("[Dify-Import] Error Response:", errorBody);
+      throw new Error(`Dify Import API error (${res.status}): ${JSON.stringify(errorBody)}`);
+    }
+
+    const data = await res.json();
+    const jsonMatch = data.answer.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      try {
           const reqs = JSON.parse(jsonMatch[0]);
           for (const r of reqs) {
             // Verifica se il requisito esiste già per questo progetto
@@ -696,7 +701,6 @@ Testo: ${block}`;
         } catch (e) {}
       }
     }
-  }
   triggerDatabaseScan();
   return totalImported;
 }
@@ -727,11 +731,16 @@ Testo: ${block}`;
       })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      const jsonMatch = data.answer.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        try {
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      console.error("[Dify-Validation] Error Response:", errorBody);
+      throw new Error(`Dify Validation API error (${res.status}): ${JSON.stringify(errorBody)}`);
+    }
+
+    const data = await res.json();
+    const jsonMatch = data.answer.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      try {
           const anomalies = JSON.parse(jsonMatch[0]);
           for (const a of anomalies) {
             // Verifica se l'anomalia esiste già per questo file e progetto
@@ -759,5 +768,4 @@ Testo: ${block}`;
         }
       }
     }
-  }
 }

@@ -425,11 +425,19 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
             </span>
           </h2>
           <p className="text-brand-text-muted text-sm md:text-lg max-w-2xl">
-            Select an industrial project instance below to begin forensic analysis, traceability validation, or site audit operations.
+            Select an industrial project instance below to begin monitoring.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {loading && (
+            <div className="col-span-full py-20 text-center flex flex-col items-center justify-center gap-4 bg-brand-card/10 border border-brand-border/30 rounded-3xl backdrop-blur-sm">
+              <RefreshCw className="w-10 h-10 animate-spin text-brand-accent" />
+              <p className="text-xs font-bold text-brand-text-muted uppercase tracking-widest animate-pulse">
+                Caricamento istanze in corso...
+              </p>
+            </div>
+          )}
           {filteredProjects.length === 0 && !loading && (
             <div className="col-span-full py-20 text-center bg-brand-card/20 border border-dashed border-brand-border/50 rounded-3xl">
               <Lock className="w-12 h-12 text-brand-text-muted mx-auto mb-4" />
@@ -1508,7 +1516,9 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
     inputStr,
     setInputStr,
     isLoading,
-    setIsLoading
+    setIsLoading,
+    selectedModel,
+    setSelectedModel
   }: { 
     projectId?: string,
     messages: any[],
@@ -1518,7 +1528,9 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
     inputStr: string,
     setInputStr: React.Dispatch<React.SetStateAction<string>>,
     isLoading: boolean,
-    setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
+    setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
+    selectedModel: string,
+    setSelectedModel: React.Dispatch<React.SetStateAction<string>>
   }) => {
     const { files: realFiles, loading: filesLoading } = useFiles(projectId);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -1609,7 +1621,8 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
 
       const payload: any = {
         inputs: {
-          project_id: projectId || "default"
+          project_id: projectId || "default",
+          model: selectedModel
         },
         query: textToQuery,
         response_mode: 'blocking',
@@ -1644,7 +1657,7 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
           setConversationId(data.conversation_id);
         }
 
-        setMessages(prev => [...prev, { role: 'assistant', content: data.answer || "Empty response.", isAI: true }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: data.answer || "Empty response.", isAI: true, model: selectedModel }]);
       } catch (err: any) {
         console.error("[Dify-Chat] Catch error:", err);
         
@@ -1657,7 +1670,7 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
           return;
         }
 
-        setMessages(prev => [...prev, { role: 'assistant', content: 'A connection error occurred with the Dify provider: ' + err.message, isAI: true }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: 'A connection error occurred with the Dify provider: ' + err.message, isAI: true, model: selectedModel }]);
       } finally {
         setIsLoading(false);
       }
@@ -1728,7 +1741,7 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
       </div>
 
       <div className="flex-1 flex flex-col bg-brand-bg/30">
-        <div className="p-4 border-b border-brand-border bg-brand-card/50 flex items-center justify-between">
+        <div className="p-4 border-b border-brand-border bg-brand-card/50 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-brand-accent/20 flex items-center justify-center">
               <ShieldCheck className="text-brand-accent w-5 h-5" />
@@ -1740,9 +1753,45 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
               </div>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-brand-accent bg-brand-accent/10 px-2 py-1 rounded border border-brand-accent/20">
-            INSTANCE: SSMS-PROD-01
-          </span>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center bg-brand-bg/50 border border-brand-border/60 rounded-xl p-1 gap-1">
+              {[
+                { id: 'Gemini', name: 'Gemini', color: 'from-cyan-400 to-indigo-400' },
+                { id: 'ChatGPT', name: 'Chat GPT', color: 'from-emerald-400 to-teal-400' },
+                { id: 'DeepSeek', name: 'DeepSeek', color: 'from-blue-400 to-blue-600' },
+                { id: 'Claude', name: 'Claude', color: 'from-orange-400 to-amber-500' }
+              ].map((model) => (
+                <button
+                  key={model.id}
+                  onClick={() => {
+                    if (selectedModel === model.id) return;
+                    setSelectedModel(model.id);
+                    setConversationId('');
+                    setMessages(prev => [
+                      ...prev,
+                      {
+                        role: 'system',
+                        content: `Modello impostato su: ${model.name}. Nuova sessione avviata.`,
+                        isSystem: true
+                      }
+                    ]);
+                  }}
+                  className={cn(
+                    "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 active:scale-95",
+                    selectedModel === model.id
+                      ? "bg-brand-accent/20 border border-brand-accent/40 text-white shadow-sm"
+                      : "text-brand-text-muted hover:text-white border border-transparent hover:bg-brand-card/30"
+                  )}
+                >
+                  <span className={cn("w-2 h-2 rounded-full bg-gradient-to-r", model.color)} />
+                  {model.name}
+                </button>
+              ))}
+            </div>
+            <span className="text-[10px] font-bold text-brand-accent bg-brand-accent/10 px-2 py-1 rounded border border-brand-accent/20">
+              INSTANCE: SSMS-PROD-01
+            </span>
+          </div>
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto space-y-8 scroll-smooth custom-scrollbar" id="chat-messages-container">
@@ -1752,36 +1801,71 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
             </span>
           </div>
 
-          {messages.map((msg, i) => (
-            <motion.div 
-              key={i} 
-              initial={{ opacity: 0, y: 10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.3, delay: i * 0.05 }}
-              className={cn("flex gap-4", msg.role === 'user' ? "justify-end" : "justify-start")}
-            >
-              {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-lg bg-brand-accent flex items-center justify-center shrink-0 shadow-lg shadow-brand-accent/20">
-                  <ShieldCheck className="text-white w-5 h-5" />
+          {messages.map((msg, i) => {
+            if (msg.role === 'system' || msg.isSystem) {
+              return (
+                <div key={i} className="flex justify-center my-2">
+                  <span className="text-[9px] font-black text-brand-text-muted bg-brand-card/50 border border-brand-border/30 px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse" />
+                    {msg.content}
+                  </span>
                 </div>
-              )}
-              <div className={cn(
-                "max-w-[85%] p-4 rounded-2xl space-y-2 shadow-xl",
-                msg.role === 'user' 
-                  ? "bg-brand-accent text-white rounded-tr-none shadow-brand-accent/10" 
-                  : "bg-brand-card border border-brand-border rounded-tl-none shadow-black/20"
-              )}>
-                <div className="text-sm leading-relaxed markdown-content">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+              );
+            }
+            return (
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.3, delay: i * 0.05 }}
+                className={cn("flex gap-4", msg.role === 'user' ? "justify-end" : "justify-start")}
+              >
+                {msg.role === 'assistant' && (
+                  <div 
+                    className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-lg transition-colors",
+                      msg.model === 'ChatGPT' ? "bg-emerald-600 shadow-emerald-600/20" :
+                      msg.model === 'DeepSeek' ? "bg-blue-600 shadow-blue-600/20" :
+                      msg.model === 'Claude' ? "bg-orange-600 shadow-orange-600/20" :
+                      "bg-brand-accent shadow-brand-accent/20" // Gemini / default
+                    )}
+                    title={`Generated by ${msg.model || 'Gemini'}`}
+                  >
+                    <ShieldCheck className="text-white w-5 h-5" />
+                  </div>
+                )}
+                <div className={cn(
+                  "max-w-[85%] p-4 rounded-2xl space-y-2 shadow-xl",
+                  msg.role === 'user' 
+                    ? "bg-brand-accent text-white rounded-tr-none shadow-brand-accent/10" 
+                    : "bg-brand-card border border-brand-border rounded-tl-none shadow-black/20"
+                )}>
+                  {msg.role === 'assistant' && (
+                    <div className="flex items-center gap-1.5 border-b border-brand-border/30 pb-1 mb-1">
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full",
+                        msg.model === 'ChatGPT' ? "bg-emerald-400" :
+                        msg.model === 'DeepSeek' ? "bg-blue-400" :
+                        msg.model === 'Claude' ? "bg-orange-400" :
+                        "bg-brand-accent"
+                      )} />
+                      <span className="text-[8px] font-black text-brand-text-muted uppercase tracking-widest">
+                        {msg.model || 'Gemini'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="text-sm leading-relaxed markdown-content">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
                 </div>
-              </div>
-              {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-lg bg-brand-border flex items-center justify-center shrink-0 shadow-lg">
-                  <User className="text-white w-5 h-5" />
-                </div>
-              )}
-            </motion.div>
-          ))}
+                {msg.role === 'user' && (
+                  <div className="w-8 h-8 rounded-lg bg-brand-border flex items-center justify-center shrink-0 shadow-lg">
+                    <User className="text-white w-5 h-5" />
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
 
           {isLoading && (
             <div className="flex gap-4 justify-start">
@@ -2830,20 +2914,22 @@ const ProjectLayout = () => {
 
   // Chat state lifted to persist across tab changes
   const [chatMessages, setChatMessages] = useState<any[]>([
-    { role: 'assistant', content: 'Inizializzazione completata. Sono l\'assistente Forensic Analysis per questo progetto. Come posso aiutarti?', isAI: true }
+    { role: 'assistant', content: 'Inizializzazione completata. Sono l\'assistente Forensic Analysis per questo progetto. Come posso aiutarti?', isAI: true, model: 'Gemini' }
   ]);
   const [chatConversationId, setChatConversationId] = useState('');
   const [chatInputStr, setChatInputStr] = useState('');
   const [chatIsLoading, setChatIsLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('Gemini');
 
   // Reset chat when project changes
   useEffect(() => {
     setChatMessages([
-      { role: 'assistant', content: 'Inizializzazione completata. Sono l\'assistente Forensic Analysis per questo progetto. Come posso aiutarti?', isAI: true }
+      { role: 'assistant', content: 'Inizializzazione completata. Sono l\'assistente Forensic Analysis per questo progetto. Come posso aiutarti?', isAI: true, model: 'Gemini' }
     ]);
     setChatConversationId('');
     setChatInputStr('');
     setChatIsLoading(false);
+    setSelectedModel('Gemini');
   }, [projectId]);
 
   if (loading) return (
@@ -2910,6 +2996,8 @@ const ProjectLayout = () => {
                   setInputStr={setChatInputStr}
                   isLoading={chatIsLoading}
                   setIsLoading={setChatIsLoading}
+                  selectedModel={selectedModel}
+                  setSelectedModel={setSelectedModel}
                 />
               )}
               {activeTab === 'vdd' && <VDDLibrary projectId={projectId} onPackageClick={setSelectedPackageView} />}
