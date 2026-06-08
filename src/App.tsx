@@ -419,7 +419,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
       <main className="flex-1 p-4 sm:p-6 md:p-12 max-w-7xl mx-auto w-full space-y-8 md:space-y-12">
         <div className="space-y-2">
           <h2 className="text-2xl md:text-4xl font-black tracking-tight flex flex-col sm:flex-row sm:items-center gap-2 md:gap-4">
-            Welcome, Commander
+            Welcome, {userProfile?.name || 'Commander'}
             <span className="text-xs md:text-sm font-bold w-max px-2 py-0.5 md:px-3 md:py-1 bg-brand-success/10 text-brand-success rounded-full border border-brand-success/20 animate-pulse">
               ALL SYSTEMS ONLINE
             </span>
