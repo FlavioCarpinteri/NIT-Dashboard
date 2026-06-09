@@ -234,6 +234,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   }, [dbProjects]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [accessRequestModal, setAccessRequestModal] = useState<Project | null>(null);
+  const [requestSent, setRequestSent] = useState(false);
   const [manageAccessModal, setManageAccessModal] = useState<Project | null>(null);
 
   const filteredProjects = localProjects.filter(p =>
@@ -242,13 +243,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
   );
 
   const requestAccess = async (project: Project) => {
-    try {
-      await requestProjectAccess(project.id);
-      alert(`Access request sent! You have been added as a Viewer for ${project.name}.`);
-      setAccessRequestModal(null);
-    } catch (err: any) {
-      alert("Error sending request: " + err.message);
-    }
+    setRequestSent(true);
   };
 
   const removeUser = async (projectId: string, userId: string) => {
@@ -578,40 +573,66 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
               className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-md w-full shadow-2xl relative"
             >
               <button
-                onClick={() => setAccessRequestModal(null)}
+                onClick={() => {
+                  setAccessRequestModal(null);
+                  setRequestSent(false);
+                }}
                 className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer transition-colors"
               >
                 <XCircle className="w-5 h-5" />
               </button>
 
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-brand-warning/10 border border-brand-warning/20 rounded-xl flex items-center justify-center">
-                  <Lock className="w-6 h-6 text-brand-warning" />
+              {requestSent ? (
+                <div className="text-center py-6 space-y-4">
+                  <div className="w-16 h-16 bg-brand-success/10 border border-brand-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="w-8 h-8 text-brand-success" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">Request Sent</h3>
+                  <p className="text-slate-300">
+                    Your request to access <span className="font-bold text-white">{accessRequestModal.name}</span> has been sent to the administrators.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setAccessRequestModal(null);
+                      setRequestSent(false);
+                    }}
+                    className="w-full mt-6 py-2 rounded-lg font-bold bg-brand-card border border-brand-border text-white hover:bg-brand-border/50 transition-colors shadow-lg cursor-pointer"
+                  >
+                    Close
+                  </button>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold">Access Restricted</h3>
-                  <p className="text-xs text-brand-text-muted uppercase tracking-widest">ID: {accessRequestModal.id}</p>
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 bg-brand-warning/10 border border-brand-warning/20 rounded-xl flex items-center justify-center">
+                      <Lock className="w-6 h-6 text-brand-warning" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Access Restricted</h3>
+                      <p className="text-xs text-brand-text-muted uppercase tracking-widest">ID: {accessRequestModal.id}</p>
+                    </div>
+                  </div>
 
-              <p className="text-sm text-slate-300 mb-6">
-                You do not currently have clearance to access <span className="font-bold text-white">{accessRequestModal.name}</span>. This workspace may contain sensitive telemetry or forensic data.
-              </p>
+                  <p className="text-sm text-slate-300 mb-6">
+                    You do not currently have clearance to access <span className="font-bold text-white">{accessRequestModal.name}</span>. This workspace may contain sensitive telemetry or forensic data.
+                  </p>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setAccessRequestModal(null)}
-                  className="flex-1 py-2 rounded-lg font-bold border border-brand-border/50 text-brand-text-muted hover:text-white transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => requestAccess(accessRequestModal)}
-                  className="flex-1 py-2 rounded-lg font-bold bg-brand-accent text-white hover:bg-brand-accent/90 transition-colors shadow-lg shadow-brand-accent/20 cursor-pointer"
-                >
-                  Request Access
-                </button>
-              </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setAccessRequestModal(null)}
+                      className="flex-1 py-2 rounded-lg font-bold border border-brand-border/50 text-brand-text-muted hover:text-white transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => requestAccess(accessRequestModal)}
+                      className="flex-1 py-2 rounded-lg font-bold bg-brand-accent text-white hover:bg-brand-accent/90 transition-colors shadow-lg shadow-brand-accent/20 cursor-pointer"
+                    >
+                      Request Access
+                    </button>
+                  </div>
+                </>
+              )}
             </motion.div>
           </div>
         )}
@@ -919,13 +940,13 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
     <><div className="p-4 sm:p-6 grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 pb-20 md:pb-6">
       <div className="xl:col-span-2 space-y-6">
         <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-brand-border flex items-center justify-between">
+          <div className="p-4 border-b border-brand-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="font-bold flex items-center gap-2 uppercase tracking-wider text-sm">
               <LayoutDashboard className="w-4 h-4 text-brand-accent" />
               Traceability Matrix
             </h3>
-            <div className="flex items-center gap-4">
-              <div className="flex gap-4 text-[10px] font-bold mr-4 border-r border-brand-border pr-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <div className="flex gap-2 sm:gap-4 text-[10px] font-bold sm:mr-4 sm:border-r border-brand-border sm:pr-4 flex-wrap">
                 <span className="flex items-center gap-1 text-brand-success">
                   <div className="w-1.5 h-1.5 rounded-full bg-brand-success"></div> {passPercent}% PASS
                 </span>
@@ -972,9 +993,9 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
               )}
             </div>
           </div>
-          <div className="overflow-auto max-h-[550px] custom-scrollbar">
-            <table className="w-full min-w-[600px] text-left text-sm relative">
-              <thead className="bg-brand-bg/90 text-brand-text-muted text-[10px] uppercase font-bold sticky top-0 z-10 backdrop-blur-md">
+          <div className="overflow-hidden max-h-[550px] custom-scrollbar">
+            <table className="w-full text-left text-[10px] sm:text-sm relative block sm:table">
+              <thead className="hidden sm:table-header-group bg-brand-bg/90 text-brand-text-muted text-[10px] uppercase font-bold sticky top-0 z-10 backdrop-blur-md">
                 <tr>
                   <th className="px-4 py-3">Requirement ID & Description</th>
                   <th className="px-4 py-3">Package Version</th>
@@ -982,86 +1003,107 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
                   <th className="px-4 py-3">Compliance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-brand-border">
-                {dataToUse.map((req: any, index: number) => (
-                  <tr key={`${req.id}-${index}`} className="hover:bg-brand-border/20 transition-colors">
-                    <td className="px-4 py-4 cursor-pointer hover:bg-brand-accent/5 transition-colors group" onClick={() => setSelectedReq(req)}>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold group-hover:text-brand-accent group-hover:underline transition-all cursor-pointer inline-block">{req.id}</p>
-                        {req.packageVersion && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onPackageClick) onPackageClick(req.packageVersion);
-                            }}
-                            className="text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-colors cursor-pointer"
-                            title={`View details for ${req.packageVersion}`}
-                          >
-                            {req.packageVersion}
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-xs text-brand-text-muted mt-1">{req.description}</p>
-                    </td>
-                    <td className="px-4 py-4 text-brand-text-muted text-xs font-bold uppercase tracking-wider">
-                      {req.packageVersion}
-                    </td>
-                    <td className="px-4 py-4">
-                      <select
-                        value={req.outcome}
-                        onChange={(e) => updateOutcome(req.id, req.linkedTest, e.target.value)}
-                        className={cn(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold outline-none cursor-pointer text-center appearance-none border border-transparent hover:border-current transition-colors",
-                          req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" :
-                            req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" :
-                              "bg-brand-warning/20 text-brand-warning"
-                        )}
-                        title="Force outcome manually"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <option value="PASS" className="bg-brand-card text-brand-success">● PASS</option>
-                        <option value="FAIL" className="bg-brand-card text-brand-error">● FAIL</option>
-                        <option value="PENDING" className="bg-brand-card text-brand-warning">● PENDING</option>
-                      </select>
-                    </td>
-                    <td className="px-4 py-4">
-                      {(() => {
-                        const visibleAnomalies = anomalies.filter((a: any) => !a.is_hidden);
-                        const reqAnomalies = visibleAnomalies.filter((a: any) => a.message.includes(req.id) || a.source.includes(req.id));
-                        if (reqAnomalies.length === 0) {
-                          return (
-                            <span title="No anomalies detected">
-                              <CheckCircle2 className="w-5 h-5 text-brand-success" />
-                            </span>
-                          );
-                        }
+              <tbody className="block sm:table-row-group divide-y divide-brand-border">
+                {dataToUse.map((req: any, index: number) => {
+                  const visibleAnomalies = anomalies.filter((a: any) => !a.is_hidden);
+                  const reqAnomalies = visibleAnomalies.filter((a: any) => a.message.includes(req.id) || a.source.includes(req.id));
+                  const hasHigh = reqAnomalies.some((a: any) => a.severity === 'HIGH');
+                  const hasMedium = reqAnomalies.some((a: any) => a.severity === 'MEDIUM');
 
-                        const hasHigh = reqAnomalies.some((a: any) => a.severity === 'HIGH');
-                        const hasMedium = reqAnomalies.some((a: any) => a.severity === 'MEDIUM');
+                  const ComplianceIcon = () => {
+                    if (reqAnomalies.length === 0) return <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-brand-success" /><span className="sm:hidden text-[9px] uppercase font-bold text-brand-success">OK</span></span>;
+                    if (hasHigh) return <span className="flex items-center gap-1"><AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-brand-error" /><span className="sm:hidden text-[9px] uppercase font-bold text-brand-error">ERR</span></span>;
+                    if (hasMedium) return <span className="flex items-center gap-1"><AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-brand-warning" /><span className="sm:hidden text-[9px] uppercase font-bold text-brand-warning">WARN</span></span>;
+                    return <span className="flex items-center gap-1"><AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-brand-accent" /><span className="sm:hidden text-[9px] uppercase font-bold text-brand-accent">INFO</span></span>;
+                  };
 
-                        if (hasHigh) {
-                          return (
-                            <span title="High Severity Anomaly Detected">
-                              <AlertCircle className="w-5 h-5 text-brand-error" />
-                            </span>
-                          );
-                        } else if (hasMedium) {
-                          return (
-                            <span title="Medium Severity Anomaly Detected">
-                              <AlertCircle className="w-5 h-5 text-brand-warning" />
-                            </span>
-                          );
-                        } else {
-                          return (
-                            <span title="Low Severity Anomaly Detected">
-                              <AlertCircle className="w-5 h-5 text-brand-accent" />
-                            </span>
-                          );
-                        }
-                      })()}
-                    </td>
-                  </tr>
-                ))}
+                  return (
+                    <tr key={`${req.id}-${index}`} className="block sm:table-row hover:bg-brand-border/20 transition-colors p-4 sm:p-0 border-b border-brand-border sm:border-0 last:border-0">
+                      <td className="block sm:table-cell sm:px-4 sm:py-4 cursor-pointer hover:bg-brand-accent/5 transition-colors group" onClick={() => setSelectedReq(req)}>
+                        {/* Mobile top row: ID + Version + Outcome + Compliance */}
+                        <div className="flex sm:hidden flex-col xs:flex-row xs:items-center gap-3 mb-3 justify-between">
+                           <p className="font-bold text-white text-sm">{req.id}</p>
+                           <div className="flex items-center gap-3 flex-wrap">
+                             <div className="flex items-center gap-1.5">
+                               <span className="text-[9px] uppercase text-brand-text-muted font-bold">Ver:</span>
+                               <span className="text-[10px] font-bold text-brand-accent bg-brand-accent/10 px-1.5 py-0.5 rounded border border-brand-accent/20">{req.packageVersion || 'N/A'}</span>
+                             </div>
+                             <div className="flex items-center gap-1.5">
+                               <span className="text-[9px] uppercase text-brand-text-muted font-bold">Out:</span>
+                               <select
+                                  value={req.outcome}
+                                  onChange={(e) => updateOutcome(req.id, req.linkedTest, e.target.value)}
+                                  className={cn(
+                                    "px-2 py-0.5 rounded-full text-[9px] font-bold outline-none cursor-pointer text-center appearance-none border border-transparent",
+                                    req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" :
+                                      req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" :
+                                        "bg-brand-warning/20 text-brand-warning"
+                                  )}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <option value="PASS" className="bg-brand-card text-brand-success">● PASS</option>
+                                  <option value="FAIL" className="bg-brand-card text-brand-error">● FAIL</option>
+                                  <option value="PENDING" className="bg-brand-card text-brand-warning">● PEND</option>
+                                </select>
+                             </div>
+                             <div className="flex items-center gap-1.5">
+                               <span className="text-[9px] uppercase text-brand-text-muted font-bold">Comp:</span>
+                               <ComplianceIcon />
+                             </div>
+                           </div>
+                        </div>
+
+                        {/* Desktop Top Row */}
+                        <div className="hidden sm:flex items-center gap-2">
+                          <p className="font-bold group-hover:text-brand-accent group-hover:underline transition-all cursor-pointer inline-block">{req.id}</p>
+                          {req.packageVersion && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onPackageClick) onPackageClick(req.packageVersion);
+                              }}
+                              className="text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-colors cursor-pointer"
+                              title={`View details for ${req.packageVersion}`}
+                            >
+                              {req.packageVersion}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Description (Shared) */}
+                        <p className="text-xs text-brand-text-muted mt-1 w-full leading-relaxed">{req.description}</p>
+                      </td>
+
+                      {/* Desktop Columns */}
+                      <td className="hidden sm:table-cell px-4 py-4 text-brand-text-muted text-xs font-bold uppercase tracking-wider">
+                        {req.packageVersion}
+                      </td>
+                      <td className="hidden sm:table-cell px-4 py-4">
+                        <select
+                          value={req.outcome}
+                          onChange={(e) => updateOutcome(req.id, req.linkedTest, e.target.value)}
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-[10px] font-bold outline-none cursor-pointer text-center appearance-none border border-transparent hover:border-current transition-colors",
+                            req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" :
+                              req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" :
+                                "bg-brand-warning/20 text-brand-warning"
+                          )}
+                          title="Force outcome manually"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <option value="PASS" className="bg-brand-card text-brand-success">● PASS</option>
+                          <option value="FAIL" className="bg-brand-card text-brand-error">● FAIL</option>
+                          <option value="PENDING" className="bg-brand-card text-brand-warning">● PENDING</option>
+                        </select>
+                      </td>
+                      <td className="hidden sm:table-cell px-4 py-4">
+                        <span title={reqAnomalies.length === 0 ? "No anomalies" : "Anomalies detected"}>
+                          <ComplianceIcon />
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2028,7 +2070,7 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
     <div className="p-4 sm:p-6 flex flex-col items-center gap-4 sm:gap-6 overflow-x-auto overflow-y-auto h-full pb-24 w-full">
 
 
-      <div className="w-[800px] flex items-center justify-between bg-brand-card/50 border border-brand-border/50 p-4 rounded-xl shrink-0 backdrop-blur-md">
+      <div className="w-full max-w-[800px] flex flex-col sm:flex-row items-center justify-between gap-4 bg-brand-card/50 border border-brand-border/50 p-4 rounded-xl shrink-0 backdrop-blur-md">
         <div>
           <h3 className="font-bold text-sm flex items-center gap-2"><Map className="w-4 h-4 text-brand-accent" /> Requirements Packages</h3>
           <p className="text-[10px] text-brand-text-muted mt-1 uppercase tracking-widest">Select versions to aggregate into the VDD</p>
@@ -2055,7 +2097,7 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
         </div>
       </div>
 
-      <div className="w-[800px] flex justify-end shrink-0">
+      <div className="w-full max-w-[800px] flex justify-end shrink-0">
         <button
           onClick={handleDownload}
           id="vdd-download-btn"
@@ -2070,7 +2112,8 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
       {reqChunks.map((chunk, idx) => {
         const pageNum = idx + 1;
         return (
-          <div key={`req-page-${pageNum}`} id={`vdd-page-${pageNum}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0">
+          <div key={`req-page-${pageNum}`} className="w-full max-w-[800px] overflow-hidden flex justify-start sm:justify-center h-[525px] sm:h-[1130px] shrink-0">
+            <div id={`vdd-page-${pageNum}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0 origin-top-left scale-[0.46] sm:scale-100">
             {pageNum === 1 && (
               <div className="mb-10">
                 <div className="absolute top-12 right-12 border-4 border-brand-warning text-brand-warning font-black px-4 py-2 rotate-12 text-center leading-tight">
@@ -2154,6 +2197,7 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
                 <span>Page {String(pageNum).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}</span>
               </div>
             </div>
+            </div>
           </div>
         );
       })}
@@ -2162,7 +2206,8 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
       {anomalyChunks.map((chunk, idx) => {
         const pageNum = reqChunks.length + idx + 1;
         return (
-          <div key={`anomaly-page-${pageNum}`} id={`vdd-page-${pageNum}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0">
+          <div key={`anomaly-page-${pageNum}`} className="w-full max-w-[800px] overflow-hidden flex justify-start sm:justify-center h-[525px] sm:h-[1130px] shrink-0">
+            <div id={`vdd-page-${pageNum}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0 origin-top-left scale-[0.46] sm:scale-100">
             <section className="space-y-6">
               <div className="flex items-center justify-between bg-slate-100 px-4 py-3 border-l-4 border-slate-900">
                 <h3 className="text-lg font-black uppercase tracking-widest">
@@ -2206,12 +2251,14 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
                 <span>Page {String(pageNum).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}</span>
               </div>
             </div>
+            </div>
           </div>
         );
       })}
 
       {/* --- SEZIONE 3: ANALYTICS (PAGINA FINALE) --- */}
-      <div id={`vdd-page-${totalPages}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0">
+      <div className="w-full max-w-[800px] overflow-hidden flex justify-start sm:justify-center h-[525px] sm:h-[1130px] shrink-0">
+        <div id={`vdd-page-${totalPages}`} className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl p-12 pb-40 relative shrink-0 origin-top-left scale-[0.46] sm:scale-100">
         <section className="space-y-10">
           <div className="flex items-center justify-between bg-slate-100 px-4 py-3 border-l-4 border-slate-900">
             <h3 className="text-lg font-black uppercase tracking-widest flex items-center gap-2">
@@ -2270,6 +2317,7 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
             <span>Mission Analytics Dashboard ({displayVersion})</span>
             <span>Page {String(totalPages).padStart(2, '0')} / {String(totalPages).padStart(2, '0')}</span>
           </div>
+        </div>
         </div>
       </div>
     </div>
