@@ -112,7 +112,7 @@ const Sidebar = ({ activeTab, setActiveTab, onBackHome }: { activeTab: string, s
       </nav>
 
       <div className="hidden md:block p-4 border-t border-brand-border">
-        <button 
+        <button
           onClick={() => supabase.auth.signOut()}
           className="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2 text-brand-error hover:bg-brand-error/10 rounded-xl transition-all font-bold uppercase text-[10px] tracking-[0.2em] group cursor-pointer"
         >
@@ -178,9 +178,9 @@ const ScanButton = ({ isCompact = false }: { isCompact?: boolean }) => {
 
   if (isCompact) {
     return (
-      <button 
-        onClick={handleScan} 
-        disabled={isScanning} 
+      <button
+        onClick={handleScan}
+        disabled={isScanning}
         className="p-2.5 text-brand-text-muted hover:text-white bg-brand-card/50 rounded-xl border border-brand-border/50 transition-all hover:border-brand-accent/50 cursor-pointer disabled:opacity-50 outline-none"
         title="Sync Database"
       >
@@ -190,7 +190,7 @@ const ScanButton = ({ isCompact = false }: { isCompact?: boolean }) => {
   }
 
   return (
-    <button 
+    <button
       onClick={handleScan}
       disabled={isScanning}
       className="flex items-center gap-2 text-brand-text-muted hover:text-white transition-colors cursor-pointer disabled:opacity-50 outline-none uppercase tracking-widest pl-2"
@@ -255,7 +255,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
     if (!confirm("Are you sure you want to revoke access for this operator?")) return;
     try {
       await removeProjectMember(projectId, userId);
-      
+
       setLocalProjects(localProjects.map(p => {
         if (p.id === projectId) {
           return {
@@ -672,7 +672,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
       </AnimatePresence>
     </div>
   );
-};const ProjectAnalytics = ({ projectId }: { projectId?: string }) => {
+}; const ProjectAnalytics = ({ projectId }: { projectId?: string }) => {
   const { requirements, loading: reqsLoading } = useRequirements(projectId);
   const { files, loading: filesLoading } = useFiles(projectId);
   const { anomalies, loading: anomaliesLoading, toggleAnomalyVisibility } = useAnomalies(projectId);
@@ -740,7 +740,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
                   itemStyle={{ color: '#f8fafc' }}
                 />
@@ -771,14 +771,14 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={anomalyStats}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} 
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }}
                 />
                 <YAxis hide />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }}
                   itemStyle={{ color: '#f8fafc', fontSize: '10px', fontWeight: 'bold' }}
@@ -810,16 +810,16 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={fileStats} margin={{ left: -20, right: 0, top: 10, bottom: 0 }}>
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#94a3b8" 
-                  fontSize={9} 
-                  fontWeight="bold" 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="name"
+                  stroke="#94a3b8"
+                  fontSize={9}
+                  fontWeight="bold"
+                  tickLine={false}
                   axisLine={false}
                 />
                 <YAxis type="number" hide />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }}
                   itemStyle={{ color: '#f8fafc', fontSize: '10px', fontWeight: 'bold' }}
@@ -848,7 +848,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                 <div className={cn(
                   "mt-1 w-2 h-2 rounded-full shrink-0",
                   anomaly.severity === 'HIGH' ? "bg-brand-error shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                  anomaly.severity === 'MEDIUM' ? "bg-brand-warning" : "bg-brand-accent"
+                    anomaly.severity === 'MEDIUM' ? "bg-brand-warning" : "bg-brand-accent"
                 )} />
                 <div className="space-y-1">
                   <p className="text-xs font-bold text-white line-clamp-2">{anomaly.message}</p>
@@ -857,7 +857,7 @@ const Home = ({ onSelectProject }: { onSelectProject: (project: Project) => void
                     <span className={cn(
                       "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest",
                       anomaly.severity === 'HIGH' ? "bg-brand-error/10 text-brand-error" :
-                      anomaly.severity === 'MEDIUM' ? "bg-brand-warning/10 text-brand-warning" : "bg-brand-accent/10 text-brand-accent"
+                        anomaly.severity === 'MEDIUM' ? "bg-brand-warning/10 text-brand-warning" : "bg-brand-accent/10 text-brand-accent"
                     )}>{anomaly.severity}</span>
                   </div>
                 </div>
@@ -959,7 +959,7 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
                         btn.disabled = false;
                         e.target.value = '';
                       }
-                    } } />
+                    }} />
                   <button
                     id="req-import-btn-matrix"
                     onClick={() => document.getElementById('req-import-input-matrix')?.click()}
@@ -993,7 +993,7 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
                             onClick={(e) => {
                               e.stopPropagation();
                               if (onPackageClick) onPackageClick(req.packageVersion);
-                            } }
+                            }}
                             className="text-[8px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-colors cursor-pointer"
                             title={`View details for ${req.packageVersion}`}
                           >
@@ -1035,10 +1035,10 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
                             </span>
                           );
                         }
-                        
+
                         const hasHigh = reqAnomalies.some((a: any) => a.severity === 'HIGH');
                         const hasMedium = reqAnomalies.some((a: any) => a.severity === 'MEDIUM');
-                        
+
                         if (hasHigh) {
                           return (
                             <span title="High Severity Anomaly Detected">
@@ -1086,7 +1086,7 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
             <Search className="w-4 h-4 text-brand-accent" />
             The Grey Area
           </h3>
-          <button 
+          <button
             onClick={() => setShowHidden(!showHidden)}
             className={cn(
               "flex items-center gap-2 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
@@ -1144,7 +1144,7 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
 
                 <div className="flex justify-between items-center">
                   <span className="text-[8px] text-brand-text-muted font-mono">{new Date(anomaly.created_at).toLocaleTimeString()} UTC</span>
-                  <button 
+                  <button
                     onClick={() => toggleAnomalyVisibility(anomaly.id, !anomaly.is_hidden)}
                     className="flex items-center gap-1.5 px-2 py-1 rounded bg-brand-card border border-brand-border text-[9px] font-bold text-brand-text-muted hover:text-white hover:border-brand-accent transition-all uppercase"
                   >
@@ -1159,7 +1159,7 @@ const ConsistencyMap = ({ projectId, onPackageClick, isAdmin }: { projectId?: st
       </div>
 
     </div>
-    <AnimatePresence>
+      <AnimatePresence>
         {selectedReq && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
@@ -1317,10 +1317,10 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
 
   const totalIndexedDocuments = dataset.length.toString();
   const rawSumMb = dataset.reduce((sum, file) => sum + (file.rawSizeMb || 0), 0);
-  const telemetryDataVolume = rawSumMb >= 1024 
-    ? `${(rawSumMb / 1024).toFixed(1)} GB` 
+  const telemetryDataVolume = rawSumMb >= 1024
+    ? `${(rawSumMb / 1024).toFixed(1)} GB`
     : `${rawSumMb.toFixed(1)} MB`;
-  
+
   const pendingIntegrityFlags = dataset.filter(f => ['Flagged', 'Needs Review', 'Outdated'].includes(f.status)).length.toString().padStart(2, '0');
 
   const handleFileAction = async (storagePath: string | undefined, forceDownload = false) => {
@@ -1332,22 +1332,22 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
       const { data, error } = await supabase.storage
         .from('project-files')
         .createSignedUrl(storagePath, 60, { download: forceDownload });
-      
+
       if (error) throw error;
-      
+
       if (data?.signedUrl) {
         if (forceDownload) {
-           const link = document.createElement('a');
-           link.href = data.signedUrl;
-           link.download = '';
-           document.body.appendChild(link);
-           link.click();
-           document.body.removeChild(link);
+          const link = document.createElement('a');
+          link.href = data.signedUrl;
+          link.download = '';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         } else {
-           window.open(data.signedUrl, '_blank');
+          window.open(data.signedUrl, '_blank');
         }
       }
-    } catch(err: any) {
+    } catch (err: any) {
       alert("Error generating access link: " + err.message);
     }
   };
@@ -1376,18 +1376,18 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
           </div>
           {isAdmin ? (
             <>
-              <input 
-                type="file" 
-                className="hidden" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
+              <input
+                type="file"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
               />
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
                 className="px-4 shrink-0 sm:px-6 py-2.5 bg-brand-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-accent/90 transition-all active:scale-95 shadow-lg shadow-brand-accent/20 disabled:opacity-50 cursor-pointer"
               >
-                {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} 
+                {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                 {isUploading ? 'Uploading...' : 'Import Data'}
               </button>
             </>
@@ -1442,14 +1442,14 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
+                      <button
                         onClick={() => handleFileAction(file.storage_path, false)}
                         className="p-1.5 hover:bg-brand-accent/20 rounded-lg text-brand-accent hover:text-white transition-all cursor-pointer"
                         title="Open file"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleFileAction(file.storage_path, true)}
                         className="p-1.5 hover:bg-brand-success/20 rounded-lg text-brand-success hover:text-white transition-all cursor-pointer"
                         title="Download file"
@@ -1457,7 +1457,7 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
                         <Download className="w-4 h-4" />
                       </button>
                       {isAdmin && (
-                        <button 
+                        <button
                           onClick={() => handleFileDelete(file.id, file.storage_path)}
                           className="p-1.5 hover:bg-brand-error/20 rounded-lg text-brand-error hover:text-white transition-all cursor-pointer"
                           title="Delete file"
@@ -1507,180 +1507,180 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
   );
 };
 
-  const InsightChat = ({ 
-    projectId, 
-    messages, 
-    setMessages, 
-    conversationId, 
-    setConversationId,
-    inputStr,
-    setInputStr,
-    isLoading,
-    setIsLoading,
-    selectedModel,
-    setSelectedModel
-  }: { 
-    projectId?: string,
-    messages: any[],
-    setMessages: React.Dispatch<React.SetStateAction<any[]>>,
-    conversationId: string,
-    setConversationId: React.Dispatch<React.SetStateAction<string>>,
-    inputStr: string,
-    setInputStr: React.Dispatch<React.SetStateAction<string>>,
-    isLoading: boolean,
-    setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
-    selectedModel: string,
-    setSelectedModel: React.Dispatch<React.SetStateAction<string>>
-  }) => {
-    const { files: realFiles, loading: filesLoading } = useFiles(projectId);
-    const messagesEndRef = React.useRef<HTMLDivElement>(null);
+const InsightChat = ({
+  projectId,
+  messages,
+  setMessages,
+  conversationId,
+  setConversationId,
+  inputStr,
+  setInputStr,
+  isLoading,
+  setIsLoading,
+  selectedModel,
+  setSelectedModel
+}: {
+  projectId?: string,
+  messages: any[],
+  setMessages: React.Dispatch<React.SetStateAction<any[]>>,
+  conversationId: string,
+  setConversationId: React.Dispatch<React.SetStateAction<string>>,
+  inputStr: string,
+  setInputStr: React.Dispatch<React.SetStateAction<string>>,
+  isLoading: boolean,
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  selectedModel: string,
+  setSelectedModel: React.Dispatch<React.SetStateAction<string>>
+}) => {
+  const { files: realFiles, loading: filesLoading } = useFiles(projectId);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
-    React.useEffect(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    const handleFileAction = async (storagePath: string | undefined, forceDownload = false) => {
-      if (!storagePath) {
-        alert("This mock file is not actually uploaded to cloud storage.");
-        return;
-      }
-      try {
-        const { data, error } = await supabase.storage
-          .from('project-files')
-          .createSignedUrl(storagePath, 60, { download: forceDownload });
-        
-        if (error) throw error;
-        
-        if (data?.signedUrl) {
-          if (forceDownload) {
-             const link = document.createElement('a');
-             link.href = data.signedUrl;
-             link.download = '';
-             document.body.appendChild(link);
-             link.click();
-             document.body.removeChild(link);
-          } else {
-             window.open(data.signedUrl, '_blank');
-          }
+  const handleFileAction = async (storagePath: string | undefined, forceDownload = false) => {
+    if (!storagePath) {
+      alert("This mock file is not actually uploaded to cloud storage.");
+      return;
+    }
+    try {
+      const { data, error } = await supabase.storage
+        .from('project-files')
+        .createSignedUrl(storagePath, 60, { download: forceDownload });
+
+      if (error) throw error;
+
+      if (data?.signedUrl) {
+        if (forceDownload) {
+          const link = document.createElement('a');
+          link.href = data.signedUrl;
+          link.download = '';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          window.open(data.signedUrl, '_blank');
         }
-      } catch(err: any) {
-        alert("Error generating access link: " + err.message);
       }
+    } catch (err: any) {
+      alert("Error generating access link: " + err.message);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(22);
+    doc.text('Stakeholder Project Summary', 20, 20);
+
+    doc.setFontSize(12);
+    doc.text(`Project Instance: ${projectId || 'N/A'}`, 20, 35);
+    doc.text(`Generated At: ${new Date().toLocaleString()}`, 20, 42);
+
+    // Conversation Section
+    doc.setFontSize(16);
+    doc.text('Latest Forensic Dialogue', 20, 60);
+
+    let y = 70;
+    messages.slice(-15).forEach((msg) => {
+      const role = msg.role === 'user' ? 'USER' : 'AI ASSISTANT';
+      const text = `${role}: ${msg.content}`;
+      const lines = doc.splitTextToSize(text, 170);
+
+      if (y + (lines.length * 7) > 275) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFontSize(9);
+      doc.setTextColor(msg.role === 'user' ? 100 : 0);
+      doc.text(lines, 20, y);
+      y += (lines.length * 7) + 4;
+    });
+
+    doc.save(`Stakeholder_Summary_${projectId || 'project'}.pdf`);
+  };
+
+  const handleSendMessage = async (queryOverride?: string) => {
+    const textToQuery = queryOverride || inputStr;
+    if (!textToQuery.trim()) return;
+
+    const apiKey = import.meta.env.VITE_DIFY_API_KEY;
+    const apiUrl = import.meta.env.VITE_DIFY_URL || 'https://api.dify.ai/v1';
+
+    if (!apiKey) {
+      alert("Configure VITE_DIFY_API_KEY in .env.local to use the remote chatbot.");
+      return;
+    }
+
+    setMessages(prev => [...prev, { role: 'user', content: textToQuery }]);
+    setInputStr('');
+    setIsLoading(true);
+
+    const payload: any = {
+      inputs: {
+        project_id: projectId || "default",
+        model: selectedModel
+      },
+      query: textToQuery,
+      response_mode: 'blocking',
+      user: 'abc-123'
     };
 
-    const handleGenerateSummary = async () => {
-      const doc = new jsPDF();
-      
-      // Header
-      doc.setFontSize(22);
-      doc.text('Stakeholder Project Summary', 20, 20);
-      
-      doc.setFontSize(12);
-      doc.text(`Project Instance: ${projectId || 'N/A'}`, 20, 35);
-      doc.text(`Generated At: ${new Date().toLocaleString()}`, 20, 42);
-      
-      // Conversation Section
-      doc.setFontSize(16);
-      doc.text('Latest Forensic Dialogue', 20, 60);
-      
-      let y = 70;
-      messages.slice(-15).forEach((msg) => {
-        const role = msg.role === 'user' ? 'USER' : 'AI ASSISTANT';
-        const text = `${role}: ${msg.content}`;
-        const lines = doc.splitTextToSize(text, 170);
-        
-        if (y + (lines.length * 7) > 275) {
-          doc.addPage();
-          y = 20;
-        }
-        
-        doc.setFontSize(9);
-        doc.setTextColor(msg.role === 'user' ? 100 : 0);
-        doc.text(lines, 20, y);
-        y += (lines.length * 7) + 4;
-      });
-      
-      doc.save(`Stakeholder_Summary_${projectId || 'project'}.pdf`);
-    };
+    console.log("[Dify-Chat] Sending payload:", payload);
 
-    const handleSendMessage = async (queryOverride?: string) => {
-      const textToQuery = queryOverride || inputStr;
-      if (!textToQuery.trim()) return;
+    if (conversationId) {
+      payload.conversation_id = conversationId;
+    }
 
-      const apiKey = import.meta.env.VITE_DIFY_API_KEY;
-      const apiUrl = import.meta.env.VITE_DIFY_URL || 'https://api.dify.ai/v1';
-
-      if (!apiKey) {
-        alert("Configure VITE_DIFY_API_KEY in .env.local to use the remote chatbot.");
-        return;
-      }
-
-      setMessages(prev => [...prev, { role: 'user', content: textToQuery }]);
-      setInputStr('');
-      setIsLoading(true);
-
-      const payload: any = {
-        inputs: {
-          project_id: projectId || "default",
-          model: selectedModel
+    try {
+      const res = await fetch(`${apiUrl}/chat-messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
         },
-        query: textToQuery,
-        response_mode: 'blocking',
-        user: 'abc-123'
-      };
+        body: JSON.stringify(payload)
+      });
 
-      console.log("[Dify-Chat] Sending payload:", payload);
-
-      if (conversationId) {
-        payload.conversation_id = conversationId;
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}));
+        console.error("[Dify-Chat] Error Response:", errorBody);
+        throw new Error(`Dify API error (${res.status}): ${JSON.stringify(errorBody)}`);
       }
 
-      try {
-        const res = await fetch(`${apiUrl}/chat-messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
+      const data = await res.json();
 
-        if (!res.ok) {
-          const errorBody = await res.json().catch(() => ({}));
-          console.error("[Dify-Chat] Error Response:", errorBody);
-          throw new Error(`Dify API error (${res.status}): ${JSON.stringify(errorBody)}`);
-        }
-
-        const data = await res.json();
-        
-        if (data.conversation_id && !conversationId) {
-          setConversationId(data.conversation_id);
-        }
-
-        setMessages(prev => [...prev, { role: 'assistant', content: data.answer || "Empty response.", isAI: true, model: selectedModel }]);
-      } catch (err: any) {
-        console.error("[Dify-Chat] Catch error:", err);
-        
-        // If conversation no longer exists, reset and retry once
-        if (err.message.includes("Conversation Not Exists") && conversationId) {
-          console.warn("[Dify-Chat] Conversation expired, resetting...");
-          setConversationId(null);
-          // Retry sending without conversationId
-          handleSendMessage(textToQuery);
-          return;
-        }
-
-        setMessages(prev => [...prev, { role: 'assistant', content: 'A connection error occurred with the Dify provider: ' + err.message, isAI: true, model: selectedModel }]);
-      } finally {
-        setIsLoading(false);
+      if (data.conversation_id && !conversationId) {
+        setConversationId(data.conversation_id);
       }
-    };
 
-    return (
-      <div className="flex flex-1 overflow-hidden flex-col md:flex-row pb-16 md:pb-0 relative h-[calc(100vh-140px)] min-h-[600px]">
+      setMessages(prev => [...prev, { role: 'assistant', content: data.answer || "Empty response.", isAI: true, model: selectedModel }]);
+    } catch (err: any) {
+      console.error("[Dify-Chat] Catch error:", err);
 
-        <div className="w-full md:w-80 border-r border-brand-border p-4 flex flex-col gap-6 bg-brand-bg z-10 shrink-0 overflow-y-auto">
-          <div>
+      // If conversation no longer exists, reset and retry once
+      if (err.message.includes("Conversation Not Exists") && conversationId) {
+        console.warn("[Dify-Chat] Conversation expired, resetting...");
+        setConversationId(null);
+        // Retry sending without conversationId
+        handleSendMessage(textToQuery);
+        return;
+      }
+
+      setMessages(prev => [...prev, { role: 'assistant', content: 'A connection error occurred with the Dify provider: ' + err.message, isAI: true, model: selectedModel }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-1 overflow-hidden flex-col md:flex-row pb-16 md:pb-0 relative h-[calc(100vh-140px)] min-h-[600px]">
+
+      <div className="w-full md:w-80 border-r border-brand-border p-4 flex flex-col gap-6 bg-brand-bg z-10 shrink-0 overflow-y-auto">
+        <div>
           <h3 className="text-[10px] font-bold text-brand-text-muted uppercase mb-4">Forensic Context</h3>
           <div className="space-y-2">
             <button className="w-full flex items-center gap-3 px-3 py-2 bg-brand-accent/10 text-brand-accent rounded-lg border border-brand-accent/20">
@@ -1729,7 +1729,7 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleGenerateSummary}
           className="w-full py-3 px-4 bg-brand-accent text-white rounded-lg font-bold flex items-center justify-center gap-3 shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-all active:scale-[0.98]"
         >
@@ -1813,21 +1813,21 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
               );
             }
             return (
-              <motion.div 
-                key={i} 
+              <motion.div
+                key={i}
                 initial={{ opacity: 0, y: 10, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.3, delay: i * 0.05 }}
                 className={cn("flex gap-4", msg.role === 'user' ? "justify-end" : "justify-start")}
               >
                 {msg.role === 'assistant' && (
-                  <div 
+                  <div
                     className={cn(
                       "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-lg transition-colors",
                       msg.model === 'ChatGPT' ? "bg-emerald-600 shadow-emerald-600/20" :
-                      msg.model === 'DeepSeek' ? "bg-blue-600 shadow-blue-600/20" :
-                      msg.model === 'Claude' ? "bg-orange-600 shadow-orange-600/20" :
-                      "bg-brand-accent shadow-brand-accent/20" // Gemini / default
+                        msg.model === 'DeepSeek' ? "bg-blue-600 shadow-blue-600/20" :
+                          msg.model === 'Claude' ? "bg-orange-600 shadow-orange-600/20" :
+                            "bg-brand-accent shadow-brand-accent/20" // Gemini / default
                     )}
                     title={`Generated by ${msg.model || 'Gemini'}`}
                   >
@@ -1836,8 +1836,8 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
                 )}
                 <div className={cn(
                   "max-w-[85%] p-4 rounded-2xl space-y-2 shadow-xl",
-                  msg.role === 'user' 
-                    ? "bg-brand-accent text-white rounded-tr-none shadow-brand-accent/10" 
+                  msg.role === 'user'
+                    ? "bg-brand-accent text-white rounded-tr-none shadow-brand-accent/10"
                     : "bg-brand-card border border-brand-border rounded-tl-none shadow-black/20"
                 )}>
                   {msg.role === 'assistant' && (
@@ -1845,9 +1845,9 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
                       <span className={cn(
                         "w-1.5 h-1.5 rounded-full",
                         msg.model === 'ChatGPT' ? "bg-emerald-400" :
-                        msg.model === 'DeepSeek' ? "bg-blue-400" :
-                        msg.model === 'Claude' ? "bg-orange-400" :
-                        "bg-brand-accent"
+                          msg.model === 'DeepSeek' ? "bg-blue-400" :
+                            msg.model === 'Claude' ? "bg-orange-400" :
+                              "bg-brand-accent"
                       )} />
                       <span className="text-[8px] font-black text-brand-text-muted uppercase tracking-widest">
                         {msg.model || 'Gemini'}
@@ -1873,8 +1873,8 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
                 <ShieldCheck className="text-white w-5 h-5" />
               </div>
               <div className="max-w-2xl p-4 rounded-2xl bg-brand-card border border-brand-border flex items-center gap-2">
-                 <RefreshCw className="w-4 h-4 animate-spin text-brand-accent" />
-                 <span className="text-sm text-brand-text-muted">Processing in progress...</span>
+                <RefreshCw className="w-4 h-4 animate-spin text-brand-accent" />
+                <span className="text-sm text-brand-text-muted">Processing in progress...</span>
               </div>
             </div>
           )}
@@ -1904,7 +1904,7 @@ const ProjectDataset = ({ projectId, isAdmin }: { projectId?: string, isAdmin: b
             />
             <div className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 md:gap-3">
               <span className="hidden sm:block text-[10px] font-bold text-brand-text-muted">↵ Send</span>
-              <button 
+              <button
                 onClick={() => handleSendMessage()}
                 disabled={isLoading || !inputStr.trim()}
                 className="p-1.5 md:p-2 bg-brand-accent rounded-lg text-white hover:bg-brand-accent/80 transition-colors disabled:opacity-50"
@@ -1939,16 +1939,16 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
   }, [vddData]);
 
   const allVersions = Array.from(new Set(vddData.map(r => r.packageVersion)));
-  
+
   // Show all selected versions joined by a separator
-  const displayVersion = selectedVersions.length > 0 
-    ? [...selectedVersions].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).join(' / ') 
+  const displayVersion = selectedVersions.length > 0
+    ? [...selectedVersions].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).join(' / ')
     : 'N/A';
- 
+
   const filteredRequirements = vddData.filter(r => selectedVersions.includes(r.packageVersion));
 
   const toggleVersion = (ver: string) => {
-    setSelectedVersions(prev => 
+    setSelectedVersions(prev =>
       prev.includes(ver) ? prev.filter(v => v !== ver) : [...prev, ver]
     );
   };
@@ -1963,7 +1963,7 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
 
   // 2. Chunking Anomalie (8 per pagina) - Escludendo quelle nascoste e filtrando solo per i requisiti selezionati
   const visibleAnomalies = anomalies.filter(a => !a.is_hidden);
-  const filteredAnomalies = visibleAnomalies.filter(a => 
+  const filteredAnomalies = visibleAnomalies.filter(a =>
     filteredRequirements.some(r => a.message.includes(r.id) || (a.source && a.source.includes(r.id)))
   );
 
@@ -1990,7 +1990,7 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
 
       const opt = { quality: 1, backgroundColor: '#ffffff' };
       btn.innerHTML = `<span class="animate-spin mr-2">◌</span> Capturing ${pageElements.length} Pages...`;
-      
+
       const images = await Promise.all(
         Array.from(pageElements).map(el => toPng(el as HTMLElement, opt))
       );
@@ -2030,31 +2030,31 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
 
       <div className="w-[800px] flex items-center justify-between bg-brand-card/50 border border-brand-border/50 p-4 rounded-xl shrink-0 backdrop-blur-md">
         <div>
-          <h3 className="font-bold text-sm flex items-center gap-2"><Map className="w-4 h-4 text-brand-accent"/> Requirements Packages</h3>
+          <h3 className="font-bold text-sm flex items-center gap-2"><Map className="w-4 h-4 text-brand-accent" /> Requirements Packages</h3>
           <p className="text-[10px] text-brand-text-muted mt-1 uppercase tracking-widest">Select versions to aggregate into the VDD</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
           {allVersions.map((v) => {
-             const isBaseline = vddData.find(r => r.packageVersion === v)?.isBaseline;
-             const isSelected = selectedVersions.includes(v);
-             return (
-               <button 
-                 key={v}
-                 onClick={() => toggleVersion(v)}
-                 className={cn(
-                   "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 shadow-sm",
-                   isSelected ? "bg-brand-accent/20 border-brand-accent text-white" : "bg-brand-bg/60 border-brand-border text-brand-text-muted hover:border-brand-text-muted",
-                   isBaseline && !isSelected && "border-white/20"
-                 )}
-               >
-                 {isBaseline && <ShieldCheck className="w-3 h-3" />}
-                 {v}
-               </button>
-             );
+            const isBaseline = vddData.find(r => r.packageVersion === v)?.isBaseline;
+            const isSelected = selectedVersions.includes(v);
+            return (
+              <button
+                key={v}
+                onClick={() => toggleVersion(v)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 shadow-sm",
+                  isSelected ? "bg-brand-accent/20 border-brand-accent text-white" : "bg-brand-bg/60 border-brand-border text-brand-text-muted hover:border-brand-text-muted",
+                  isBaseline && !isSelected && "border-white/20"
+                )}
+              >
+                {isBaseline && <ShieldCheck className="w-3 h-3" />}
+                {v}
+              </button>
+            );
           })}
         </div>
       </div>
-      
+
       <div className="w-[800px] flex justify-end shrink-0">
         <button
           onClick={handleDownload}
@@ -2127,8 +2127,8 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
                           <td className="px-4 py-3">
                             <span className={cn(
                               "font-bold",
-                              row.outcome === 'PASS' ? "text-brand-success" : 
-                              row.outcome === 'FAIL' ? "text-brand-error" : "text-brand-warning"
+                              row.outcome === 'PASS' ? "text-brand-success" :
+                                row.outcome === 'FAIL' ? "text-brand-error" : "text-brand-warning"
                             )}>● {row.outcome}</span>
                           </td>
                           <td className="px-4 py-3">
@@ -2181,7 +2181,7 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
                       <div className={cn(
                         "mt-1 w-2 h-2 rounded-full shrink-0",
                         anomaly.severity === 'HIGH' ? "bg-brand-error shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                        anomaly.severity === 'MEDIUM' ? "bg-brand-warning" : "bg-brand-accent"
+                          anomaly.severity === 'MEDIUM' ? "bg-brand-warning" : "bg-brand-accent"
                       )} />
                       <div className="flex-1 space-y-1">
                         <div className="flex justify-between items-center">
@@ -2189,7 +2189,7 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
                           <span className={cn(
                             "text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest",
                             anomaly.severity === 'HIGH' ? "bg-brand-error text-white" :
-                            anomaly.severity === 'MEDIUM' ? "bg-brand-warning text-white" : "bg-brand-accent text-white"
+                              anomaly.severity === 'MEDIUM' ? "bg-brand-warning text-white" : "bg-brand-accent text-white"
                           )}>{anomaly.severity}</span>
                         </div>
                         <p className="text-sm font-bold text-slate-800 leading-tight">{anomaly.message}</p>
@@ -2215,28 +2215,28 @@ const VDDLibrary = ({ projectId, onPackageClick }: { projectId?: string, onPacka
         <section className="space-y-10">
           <div className="flex items-center justify-between bg-slate-100 px-4 py-3 border-l-4 border-slate-900">
             <h3 className="text-lg font-black uppercase tracking-widest flex items-center gap-2">
-              3. Analytics & Global Metrics 
+              3. Analytics & Global Metrics
               <span className="text-[10px] text-slate-400 font-bold normal-case">({displayVersion})</span>
             </h3>
             <span className="text-[10px] font-bold text-slate-400 uppercase">Page {String(totalPages).padStart(2, '0')} of {String(totalPages).padStart(2, '0')}</span>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-12">
             <div className="space-y-4">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-2">Traceability Distribution</h4>
               <div className="h-64 w-full flex items-end justify-around border border-slate-100 rounded-2xl bg-slate-50/50 p-12">
-                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 bg-brand-success rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'PASS').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
-                    <span className="text-[10px] font-black uppercase text-slate-400">Pass</span>
-                 </div>
-                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 bg-brand-error rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'FAIL').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
-                    <span className="text-[10px] font-black uppercase text-slate-400">Fail</span>
-                 </div>
-                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 bg-brand-warning rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'PENDING').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
-                    <span className="text-[10px] font-black uppercase text-slate-400">Pending</span>
-                 </div>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 bg-brand-success rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'PASS').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
+                  <span className="text-[10px] font-black uppercase text-slate-400">Pass</span>
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 bg-brand-error rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'FAIL').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
+                  <span className="text-[10px] font-black uppercase text-slate-400">Fail</span>
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 bg-brand-warning rounded-t-lg" style={{ height: `${filteredRequirements.length > 0 ? (filteredRequirements.filter(r => r.outcome === 'PENDING').length / filteredRequirements.length) * 140 + 5 : 5}px` }}></div>
+                  <span className="text-[10px] font-black uppercase text-slate-400">Pending</span>
+                </div>
               </div>
             </div>
 
@@ -2317,7 +2317,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={goToToday}
             className="px-4 py-1.5 bg-[#1e1e1e] border border-white/10 rounded-full text-xs font-bold hover:bg-white/5 transition-all"
           >
@@ -2329,7 +2329,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
           </div>
           <h2 className="text-xl font-bold capitalize">{monthName}</h2>
         </div>
-        
+
 
       </div>
 
@@ -2345,8 +2345,8 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
         {/* Days Grid */}
         <div className="flex-1 grid grid-cols-7 grid-rows-5">
           {days.map((d, i) => (
-            <div 
-              key={i} 
+            <div
+              key={i}
               className={cn(
                 "border-r border-b border-white/5 p-2 space-y-1 relative group overflow-hidden",
                 d.day === null ? "bg-[#0c0c0c]" : "hover:bg-white/[0.02]"
@@ -2354,15 +2354,15 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
             >
               {d.day && (
                 <div className="flex justify-center">
-                   <span className={cn(
-                     "text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full transition-colors",
-                     d.date === new Date().toISOString().split('T')[0] ? "bg-brand-accent text-white" : "text-white/60"
-                   )}>
-                     {d.day}
-                   </span>
+                  <span className={cn(
+                    "text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full transition-colors",
+                    d.date === new Date().toISOString().split('T')[0] ? "bg-brand-accent text-white" : "text-white/60"
+                  )}>
+                    {d.day}
+                  </span>
                 </div>
               )}
-              
+
               <div className="space-y-1 overflow-y-auto max-h-[80%] hide-scrollbar">
                 {d.reqs?.map(r => (
                   <button
@@ -2371,8 +2371,8 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
                     className={cn(
                       "w-full text-left px-2 py-1 rounded text-[9px] font-bold truncate transition-transform active:scale-95",
                       r.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success border border-brand-success/30" :
-                      r.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error border border-brand-error/30" :
-                      "bg-[#3d311d] text-brand-warning border border-brand-warning/30"
+                        r.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error border border-brand-error/30" :
+                          "bg-[#3d311d] text-brand-warning border border-brand-warning/30"
                     )}
                   >
                     {r.id}: {r.description}
@@ -2394,7 +2394,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="bg-[#1a1a1a] border border-white/10 rounded-3xl p-8 max-w-xl w-full shadow-2xl space-y-6 relative"
             >
-              <button 
+              <button
                 onClick={() => setSelectedReq(null)}
                 className="absolute top-6 right-6 p-2 hover:bg-white/5 rounded-full"
               >
@@ -2406,7 +2406,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
                   <div className={cn(
                     "w-3 h-3 rounded-full",
                     selectedReq.outcome === 'PASS' ? "bg-brand-success" :
-                    selectedReq.outcome === 'FAIL' ? "bg-brand-error" : "bg-brand-warning"
+                      selectedReq.outcome === 'FAIL' ? "bg-brand-error" : "bg-brand-warning"
                   )} />
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Requirement Detail</span>
                 </div>
@@ -2423,7 +2423,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
                   <p className={cn(
                     "text-lg font-black",
                     selectedReq.outcome === 'PASS' ? "text-brand-success" :
-                    selectedReq.outcome === 'FAIL' ? "text-brand-error" : "text-brand-warning"
+                      selectedReq.outcome === 'FAIL' ? "text-brand-error" : "text-brand-warning"
                   )}>{selectedReq.outcome}</p>
                 </div>
                 <div className="p-4 bg-white/5 border border-white/5 rounded-2xl space-y-1">
@@ -2466,7 +2466,7 @@ const MissionCalendar = ({ projectId }: { projectId?: string }) => {
 const ProjectTeam = ({ projectId }: { projectId?: string }) => {
   const { project, loading: projectLoading } = useProject(projectId);
   const { users: systemUsers, loading: usersLoading } = useSystemUsers();
-  
+
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('Viewer');
   const [searchQuery, setSearchQuery] = useState('');
@@ -2474,7 +2474,7 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  
+
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
@@ -2501,10 +2501,10 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
   const isCurrentUserAdmin = myMemberInfo?.role === 'Admin';
 
   // Filtra gli utenti di sistema disponibili per l'invito (non ancora nel team)
-  const availableUsers = systemUsers.filter(u => 
+  const availableUsers = systemUsers.filter(u =>
     !project.team.some(m => m.email === u.email) &&
-    (u.email.toLowerCase().includes(searchQuery.toLowerCase()) || 
-     u.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    (u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const handleAddMember = async (e: React.FormEvent) => {
@@ -2580,7 +2580,7 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
 
   return (
     <div className="p-4 sm:p-8 space-y-8 pb-20 md:pb-8 max-w-6xl mx-auto w-full">
-      
+
       {/* Header and Statistics */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-brand-card/30 border border-brand-border/50 p-6 sm:p-8 rounded-3xl backdrop-blur-xl">
         <div className="space-y-1">
@@ -2618,9 +2618,9 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
           <span className={cn(
             "text-[10px] font-black px-2.5 py-0.5 rounded border uppercase tracking-wider",
             myMemberInfo?.role === 'Admin' ? "bg-brand-error/20 text-brand-error border-brand-error/30" :
-            myMemberInfo?.role === 'Lead QA' ? "bg-brand-accent/20 text-brand-accent border-brand-accent/30" :
-            myMemberInfo?.role === 'Engineer' ? "bg-brand-success/20 text-brand-success border-brand-success/30" :
-            "bg-slate-800 text-slate-400 border-slate-700"
+              myMemberInfo?.role === 'Lead QA' ? "bg-brand-accent/20 text-brand-accent border-brand-accent/30" :
+                myMemberInfo?.role === 'Engineer' ? "bg-brand-success/20 text-brand-success border-brand-success/30" :
+                  "bg-slate-800 text-slate-400 border-slate-700"
           )}>
             {myMemberInfo?.role || 'Viewer'}
           </span>
@@ -2643,7 +2643,7 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Members List Panel */}
         <div className="lg:col-span-2 space-y-4">
           <h3 className="text-xs font-black text-brand-accent uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
@@ -2652,15 +2652,15 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
 
           <div className="space-y-4">
             {project.team.map((member, i) => (
-              <motion.div 
-                key={member.id} 
+              <motion.div
+                key={member.id}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
                 className="bg-brand-card/40 border border-brand-border/40 hover:border-brand-border/80 transition-all p-4 rounded-2xl flex items-center justify-between gap-4 group"
               >
                 <div className="flex items-center gap-4">
-                  <div 
+                  <div
                     style={getAvatarStyle(member.name)}
                     className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-sm"
                   >
@@ -2695,9 +2695,9 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
                     <span className={cn(
                       "text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider",
                       member.role === 'Admin' ? "bg-brand-error/15 text-brand-error border-brand-error/20" :
-                      member.role === 'Lead QA' ? "bg-brand-accent/15 text-brand-accent border-brand-accent/20" :
-                      member.role === 'Engineer' ? "bg-brand-success/15 text-brand-success border-brand-success/20" :
-                      "bg-brand-card text-brand-text-muted border-brand-border"
+                        member.role === 'Lead QA' ? "bg-brand-accent/15 text-brand-accent border-brand-accent/20" :
+                          member.role === 'Engineer' ? "bg-brand-success/15 text-brand-success border-brand-success/20" :
+                            "bg-brand-card text-brand-text-muted border-brand-border"
                     )}>
                       {member.role}
                     </span>
@@ -2710,8 +2710,8 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
                       disabled={actionLoading}
                       className={cn(
                         "p-2 rounded-lg transition-all",
-                        member.id === currentUser?.id 
-                          ? "text-brand-warning hover:bg-brand-warning/10" 
+                        member.id === currentUser?.id
+                          ? "text-brand-warning hover:bg-brand-warning/10"
                           : "text-brand-error hover:bg-brand-error/10"
                       )}
                       title={member.id === currentUser?.id ? "Leave Project" : "Revoke Access"}
@@ -2759,9 +2759,9 @@ const ProjectTeam = ({ projectId }: { projectId?: string }) => {
                   {/* Autocomplete suggestions */}
                   <AnimatePresence>
                     {showSuggestions && searchQuery.trim().length > 0 && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 5 }} 
-                        animate={{ opacity: 1, y: 0 }} 
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 5 }}
                         className="absolute w-full mt-1 bg-brand-card border border-brand-border rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto"
                       >
@@ -2842,13 +2842,13 @@ const PackageDetailsModal = ({ projectId, packageVersion, onClose }: { projectId
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="bg-brand-card border border-brand-border/50 rounded-2xl p-6 max-w-2xl w-full shadow-2xl relative max-h-[80vh] flex flex-col"
       >
-        <button 
+        <button
           onClick={onClose}
           className="absolute top-4 right-4 text-brand-text-muted hover:text-white cursor-pointer"
         >
@@ -2863,9 +2863,9 @@ const PackageDetailsModal = ({ projectId, packageVersion, onClose }: { projectId
 
         <div className="overflow-y-auto flex-1 space-y-3 pr-2 hide-scrollbar">
           {loading ? (
-             <p className="text-brand-text-muted text-sm tracking-widest uppercase">Loading requirements...</p>
+            <p className="text-brand-text-muted text-sm tracking-widest uppercase">Loading requirements...</p>
           ) : packageReqs.length === 0 ? (
-             <p className="text-brand-text-muted text-sm tracking-widest uppercase">No requirements found for this package.</p>
+            <p className="text-brand-text-muted text-sm tracking-widest uppercase">No requirements found for this package.</p>
           ) : (
             packageReqs.map(req => (
               <div key={req.id} className="bg-brand-bg/50 border border-brand-border/50 p-4 rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -2876,9 +2876,9 @@ const PackageDetailsModal = ({ projectId, packageVersion, onClose }: { projectId
                 <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0">
                   <span className={cn(
                     "px-2 py-0.5 rounded-full text-[10px] font-bold w-max",
-                    req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" : 
-                    req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" : 
-                    "bg-brand-warning/20 text-brand-warning"
+                    req.outcome === 'PASS' ? "bg-brand-success/20 text-brand-success" :
+                      req.outcome === 'FAIL' ? "bg-brand-error/20 text-brand-error" :
+                        "bg-brand-warning/20 text-brand-warning"
                   )}>
                     ● {req.outcome}
                   </span>
@@ -2986,9 +2986,9 @@ const ProjectLayout = () => {
               {activeTab === 'consistency' && <ConsistencyMap projectId={projectId} onPackageClick={setSelectedPackageView} isAdmin={isAdmin} />}
               {activeTab === 'dataset' && <ProjectDataset projectId={projectId} isAdmin={isAdmin} />}
               {activeTab === 'chat' && (
-                <InsightChat 
-                  projectId={projectId} 
-                  messages={chatMessages} 
+                <InsightChat
+                  projectId={projectId}
+                  messages={chatMessages}
                   setMessages={setChatMessages}
                   conversationId={chatConversationId}
                   setConversationId={setChatConversationId}
@@ -3009,10 +3009,10 @@ const ProjectLayout = () => {
         {/* Modal Package Details - Portato allo scope di ProjectLayout per funzionare ovunque */}
         <AnimatePresence>
           {selectedPackageView && (
-            <PackageDetailsModal 
-              projectId={projectId} 
-              packageVersion={selectedPackageView} 
-              onClose={() => setSelectedPackageView(null)} 
+            <PackageDetailsModal
+              projectId={projectId}
+              packageVersion={selectedPackageView}
+              onClose={() => setSelectedPackageView(null)}
             />
           )}
         </AnimatePresence>
